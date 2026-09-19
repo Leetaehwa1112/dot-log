@@ -2102,17 +2102,34 @@
                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .art3 .plate3 span { color: #6b6156; font-size: 10px; }
 
-    /* 바닥에 기대 세워둔, 아직 붙이는 중인 캔버스 */
+    /* 아직 붙이는 중인 캔버스 — 벽에 걸지 않는다.
+       바닥에 세워 벽에 비스듬히 기대 놓는다. 액자도 안 씌운다(아직 액자 갈 때가 아니다). */
     .lean3 {
-      position: absolute; bottom: 0; width: var(--w); margin: 0; pointer-events: auto;
-      transform: translateX(-50%) rotateX(-8deg); transform-origin: bottom center;
-      cursor: pointer;
+      position: absolute; bottom: calc(26px * var(--fit)); width: var(--w); margin: 0;
+      pointer-events: auto; cursor: pointer; opacity: .93;
+      transform-origin: bottom center;
+      transform: translateX(-50%) translateZ(calc(46px * var(--fit))) rotateX(7deg);
     }
-    .lean3 .frame-box { transform: none; }
+    /* 맨 캔버스: 두꺼운 나무틀에 천을 씌운 그 모양 */
+    .lean3 .frame-box {
+      transform: none; animation: none;
+      padding: 0; border-radius: 2px;
+      background: #f3efe6 !important;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.18), -3px 3px 0 0 #cdc4b4;
+    }
+    .lean3 .frame-mat { padding: 0; background: transparent; border-radius: 0; }
+    .lean3 .frame-glass, .lean3 .frame-twinkle { display: none; }
+    /* 바닥에 닿은 자리의 그림자 — 이게 있어야 '서 있다'로 읽힌다 */
     .lean3::after {
-      content: ""; position: absolute; left: -6%; right: -6%; bottom: -10px; height: 16px;
-      background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.45), transparent 70%);
-      filter: blur(3px);
+      content: ""; position: absolute; left: -10%; right: -26%; bottom: -6px; height: 14px;
+      background: radial-gradient(ellipse at 42% 50%, rgba(0,0,0,.55), transparent 72%);
+      filter: blur(4px); pointer-events: none;
+    }
+    .lean3 .lean-tag {
+      position: absolute; left: 0; bottom: calc(100% + 5px);
+      font-size: 10px; font-weight: 800; letter-spacing: .02em;
+      color: #fff; background: rgba(12,8,20,.66); border-radius: 999px; padding: 2px 7px;
+      white-space: nowrap;
     }
 
     /* ── 조작 막대 ────────────────────────────────────────────────── */
@@ -3426,10 +3443,12 @@
       });
 
       // 붙이는 중인 건 바닥에 기대 세워둔다 — 방에 사람이 사는 티가 난다
-      const leaning = wipList.slice(0, 4).map((i, k) => {
+      const leaning = wipList.slice(0, 3).map((i, k) => {
         const n = artNode(i, k);
-        const x = 14 + k * 22;
-        return `<figure class="lean3" data-dex="${i.id}" style="--w:${Math.round(n.w * 0.72)}px;left:${x}%">${n.html}</figure>`;
+        const x = 16 + k * 24;
+        return `<figure class="lean3" data-dex="${i.id}" style="--w:${Math.round(n.w * 0.78)}px;left:${x}%">
+          ${n.html}<span class="lean-tag">${i.status === "planned" ? "모셔둠" : pct(i) + "%"}</span>
+        </figure>`;
       }).join("");
 
       const [wa, wb, sk] = WALL_PALETTES[cfg.wall] || WALL_PALETTES.cream;
@@ -3499,7 +3518,7 @@
         white: ["#f2efe9", "#cfc9bd", "#e4dfd5"],
       };
       const [a, b, c] = map[tone] || map.wood;
-      document.querySelectorAll(".r3 .frame-box, .r3 .lean3 .frame-box").forEach((el) => {
+      document.querySelectorAll(".r3 .art3 .frame-box").forEach((el) => {
         el.style.background = `linear-gradient(150deg, ${a}, ${b} 46%, ${c})`;
       });
     }
