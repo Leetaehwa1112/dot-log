@@ -1991,113 +1991,189 @@
       .frame:hover .frame-box { transform: none; }
     }
 
-    /* ═══ 전시실 — 벽만이 아니라 '공간' ═══════════════════════════════
-       천장 트랙 조명 → 벽면 → 걸린 액자 → 걸레받이 → 바닥과 반사.
+    /* ═══ 나의 전시실 — 진짜 3D 공간 ═══════════════════════════════
+       벽 그림이 아니라 방이다. 정면·좌·우 벽과 바닥·천장이 원근 안에 서고,
+       완성작은 그 벽면에 실제 크기 비율로 걸린다.
+       단위는 한 가지만 쓴다 — 1cm = 2.6px. 방은 420 × 250 × 420cm.
        ════════════════════════════════════════════════════════════════ */
-    .room {
-      position: relative; margin-top: var(--s-6); border-radius: 18px; overflow: hidden;
-      isolation: isolate;
-    }
+    .r3-wrap { margin-top: var(--s-5); }
 
-    /* 천장 + 트랙 조명 */
-    .room-ceiling { position: relative; height: 54px;
-      background: linear-gradient(180deg, #2a2016 0%, #3a2c1e 60%, #4a382600 100%); }
-    [data-theme="dark"] .room-ceiling { background: linear-gradient(180deg, #0a1020 0%, #101a2e 60%, transparent 100%); }
-    .track { position: absolute; left: 8%; right: 8%; top: 20px; height: 4px; border-radius: 2px;
-             background: linear-gradient(180deg, #6d6155, #2e2820); }
-    .lamp { position: absolute; left: var(--x); top: 22px; transform: translateX(-50%); }
-    .lamp::before { content: ""; display: block; width: 14px; height: 12px; border-radius: 3px 3px 6px 6px;
-      background: linear-gradient(180deg, #8a7c6b, #3b332a); box-shadow: 0 1px 0 rgba(255,255,255,.25) inset; }
-    /* 빛 원뿔 */
-    .lamp::after {
-      content: ""; position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
-      width: 190px; height: 300px; pointer-events: none;
-      background: linear-gradient(180deg, rgba(255,240,205,.42), rgba(255,240,205,.10) 46%, transparent 78%);
-      clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
-      filter: blur(2px);
+    .r3 {
+      /* --fit: 화면 폭에 맞춘 축소 비율. 방과 원근을 같은 값으로 줄이므로
+         보이는 그림은 똑같고 크기만 달라진다. JS 가 넣어준다. */
+      --fit: 1;
+      --W: calc(1092px * var(--fit));   /* 420cm */
+      --H: calc(650px * var(--fit));    /* 250cm */
+      --D: calc(1092px * var(--fit));   /* 420cm */
+      --yaw: 0deg; --pitch: 0deg; --dolly: 0px;
+      --wallA: #efe7da; --wallB: #e3d8c7;      /* 벽 (꾸미기로 바뀐다) */
+      --floorA: #8a6a48; --floorB: #6d5136;    /* 바닥 */
+      --skirt: #f7f2e8;                        /* 걸레받이 */
+      position: relative; height: 62vh; min-height: 340px; max-height: 560px;
+      border-radius: 18px; overflow: hidden; isolation: isolate;
+      background: #0b0812;
+      perspective: calc(900px * var(--fit)); perspective-origin: 50% 46%;
+      touch-action: pan-y; cursor: grab; user-select: none;
     }
-    [data-theme="dark"] .lamp::after { background: linear-gradient(180deg, rgba(255,238,200,.30), rgba(255,238,200,.07) 46%, transparent 78%); }
+    .r3.dragging { cursor: grabbing; }
+    @media (max-width: 430px) { .r3 { height: 54vh; min-height: 300px; } }
 
-    /* 벽면 */
-    .room-wall {
-      position: relative; padding: var(--s-8) var(--s-6) var(--s-12);
+    .r3-stage {
+      position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none;
+      transform: translateZ(var(--dolly)) rotateX(var(--pitch)) rotateY(var(--yaw));
+      transition: transform .12s linear;
+    }
+    .r3.dragging .r3-stage { transition: none; }
+
+    .r3-surf { position: absolute; left: 50%; top: 50%; transform-style: preserve-3d; }
+
+    .r3-back  { width: var(--W); height: var(--H);
+                margin-left: calc(var(--W) / -2); margin-top: calc(var(--H) / -2);
+                transform: translateZ(calc(var(--D) / -2)); }
+    .r3-left  { width: var(--D); height: var(--H);
+                margin-left: calc(var(--D) / -2); margin-top: calc(var(--H) / -2);
+                transform: translateX(calc(var(--W) / -2)) rotateY(90deg); }
+    .r3-right { width: var(--D); height: var(--H);
+                margin-left: calc(var(--D) / -2); margin-top: calc(var(--H) / -2);
+                transform: translateX(calc(var(--W) / 2)) rotateY(-90deg); }
+    .r3-floor { width: var(--W); height: var(--D);
+                margin-left: calc(var(--W) / -2); margin-top: calc(var(--D) / -2);
+                transform: translateY(calc(var(--H) / 2)) rotateX(90deg); }
+    .r3-ceil  { width: var(--W); height: var(--D);
+                margin-left: calc(var(--W) / -2); margin-top: calc(var(--D) / -2);
+                transform: translateY(calc(var(--H) / -2)) rotateX(-90deg); }
+
+    /* 벽면: 위에서 내려오는 빛 + 아래쪽 그늘 + 걸레받이 */
+    .r3-wall {
       background:
-        radial-gradient(140% 80% at 50% 0%, rgba(255,246,225,.50), transparent 62%),
-        linear-gradient(180deg, color-mix(in srgb, var(--paper) 84%, #cdbfa6) 0%, color-mix(in srgb, var(--paper) 96%, #e6dcc8) 78%);
+        linear-gradient(180deg, rgba(255,255,255,.22), transparent 38%),
+        linear-gradient(180deg, transparent 62%, rgba(0,0,0,.20)),
+        linear-gradient(180deg, var(--wallA), var(--wallB));
     }
-    [data-theme="dark"] .room-wall {
+    .r3-wall::after {          /* 걸레받이 */
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: calc(22px * var(--fit));
+      background: linear-gradient(180deg, var(--skirt), color-mix(in srgb, var(--skirt) 70%, #000));
+      box-shadow: 0 -2px 6px rgba(0,0,0,.18);
+    }
+    /* 옆벽은 정면보다 한 겹 어둡게 — 이것만으로 모서리가 선다 */
+    .r3-left  { filter: brightness(.88); }
+    .r3-right { filter: brightness(.79); }
+
+    .r3-floor {
       background:
-        radial-gradient(140% 80% at 50% 0%, rgba(190,205,255,.12), transparent 62%),
-        linear-gradient(180deg, #16203a 0%, #101828 78%);
+        linear-gradient(180deg, rgba(0,0,0,.34), transparent 30%),
+        repeating-linear-gradient(90deg,
+          var(--floorA) 0 52px, var(--floorB) 52px 54px),
+        var(--floorA);
     }
-    .wall-rail { top: 18px; }
-
-    /* 액자를 조금씩 다른 높이로 — 실제 벽은 자로 잰 듯 걸리지 않는다 */
-    .frame:nth-child(2n)   { margin-top: 14px; }
-    .frame:nth-child(3n+1) { margin-top: 6px; }
-
-    /* 바닥에 비친 그림자 */
-    .frame-box {
-      -webkit-box-reflect: below 10px linear-gradient(transparent 62%, rgba(255,255,255,.22));
+    .r3-ceil {
+      background: linear-gradient(180deg, #17121f, #241c30);
     }
 
-    /* 걸레받이 + 바닥 */
-    .room-floor {
-      position: relative; height: 92px;
-      background:
-        linear-gradient(180deg, color-mix(in srgb, var(--paper) 70%, #b8a88c) 0%, color-mix(in srgb, var(--paper) 92%, #d8cdb6) 100%);
-      box-shadow: inset 0 14px 22px -14px rgba(60,40,20,.55);
+    /* 천장 조명 — 빛이 어디서 오는지 보이게 */
+    .r3-lamp { position: absolute; top: 40%; width: 44px; height: 10px; margin-left: -22px;
+               border-radius: 3px; background: linear-gradient(180deg, #d9cdbb, #6b5f51); }
+    .r3-lamp::after { content: ""; position: absolute; left: 50%; top: 100%; width: 190px; height: 150px;
+                      margin-left: -95px; border-radius: 50%;
+                      background: radial-gradient(ellipse at 50% 0%, rgba(255,240,205,.5), transparent 70%);
+                      filter: blur(6px); }
+
+    /* ── 벽에 걸린 작품 ───────────────────────────────────────────── */
+    .art3 {
+      position: absolute; margin: 0; width: var(--w); pointer-events: auto;
+      transform: translate(-50%, -50%) translateZ(9px);
+      cursor: pointer;
     }
-    [data-theme="dark"] .room-floor {
-      background: linear-gradient(180deg, #0d1424 0%, #0a0f1b 100%);
-      box-shadow: inset 0 14px 22px -14px rgba(0,0,0,.8);
+    .art3 .frame-box { transform: none; }
+    .art3.sel .frame-box { outline: 2px solid var(--brand); outline-offset: 4px; }
+    /* 액자가 벽에 떨구는 그림자 */
+    .art3::before {
+      content: ""; position: absolute; inset: 6px -10px -14px 6px; z-index: -1;
+      background: rgba(20,10,4,.34); filter: blur(10px); border-radius: 6px;
     }
-    /* 바닥 반사광 — 조명이 바닥에 떨어진 자리 */
-    .room-floor::before {
-      content: ""; position: absolute; inset: 0;
-      background:
-        radial-gradient(46% 70% at 18% 0%, rgba(255,240,205,.35), transparent 70%),
-        radial-gradient(46% 70% at 50% 0%, rgba(255,240,205,.35), transparent 70%),
-        radial-gradient(46% 70% at 82% 0%, rgba(255,240,205,.35), transparent 70%);
+    .art3 .plate3 {
+      position: absolute; left: 50%; top: calc(100% + 10px); transform: translateX(-50%);
+      width: max-content; max-width: 160px; text-align: center;
+      font-size: 11px; line-height: 1.3; color: #3a3025;
+      background: rgba(255,255,255,.78); border: 1px solid rgba(0,0,0,.10);
+      border-radius: 3px; padding: 3px 7px;
     }
-    [data-theme="dark"] .room-floor::before {
-      background:
-        radial-gradient(46% 70% at 18% 0%, rgba(255,238,200,.16), transparent 70%),
-        radial-gradient(46% 70% at 50% 0%, rgba(255,238,200,.16), transparent 70%),
-        radial-gradient(46% 70% at 82% 0%, rgba(255,238,200,.16), transparent 70%);
+    .art3 .plate3 b { display: block; font-weight: 800; font-size: 11px;
+                      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .art3 .plate3 span { color: #6b6156; font-size: 10px; }
+
+    /* 바닥에 기대 세워둔, 아직 붙이는 중인 캔버스 */
+    .lean3 {
+      position: absolute; bottom: 0; width: var(--w); margin: 0; pointer-events: auto;
+      transform: translateX(-50%) rotateX(-8deg); transform-origin: bottom center;
+      cursor: pointer;
     }
-    .baseboard {
-      position: absolute; left: 0; right: 0; top: 0; height: 10px;
-      background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 28%, transparent), transparent);
+    .lean3 .frame-box { transform: none; }
+    .lean3::after {
+      content: ""; position: absolute; left: -6%; right: -6%; bottom: -10px; height: 16px;
+      background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.45), transparent 70%);
+      filter: blur(3px);
     }
 
-    /* 공간 전체에 가장자리 어둠 */
-    .room::after {
-      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
-      box-shadow: inset 0 0 70px -18px rgba(40,26,10,.5);
-      border-radius: 18px;
+    /* ── 조작 막대 ────────────────────────────────────────────────── */
+    .r3-hint {
+      position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+      z-index: 4; pointer-events: none;
+      font-size: 11px; font-weight: 600; letter-spacing: .02em; color: #fff;
+      background: rgba(12,8,20,.5); padding: 4px 10px; border-radius: 999px;
+      backdrop-filter: blur(4px);
+      transition: opacity .3s;
     }
-    [data-theme="dark"] .room::after { box-shadow: inset 0 0 80px -16px rgba(0,0,0,.8); }
+    .r3.moved .r3-hint { opacity: 0; }
 
-    @media (prefers-reduced-motion: reduce) { .lamp::after { filter: none; } }
-
-    /* ── 액자는 실제 크기에 비례해서 걸린다 ─────────────────────────── */
-    .wall-grid {
-      display: flex !important; flex-wrap: wrap; align-items: flex-end;
-      gap: var(--s-8) var(--s-6); grid-template-columns: none !important;
+    .r3-zoom { position: absolute; right: 10px; bottom: 10px; z-index: 4; display: flex; gap: 6px; }
+    .r3-zoom button {
+      width: 34px; height: 34px; padding: 0; margin: 0; border: 0; border-radius: 10px;
+      background: rgba(12,8,20,.5); color: #fff; font-size: 16px; font-weight: 700; line-height: 1;
+      backdrop-filter: blur(4px);
     }
-    .frame { flex: 0 0 auto; width: var(--w, 150px); }
-    .frame-slot { flex: 0 0 auto; width: 140px; }
-    .wall-empty { flex: 1 1 100%; }
+
+    /* ── 집꾸미기 ─────────────────────────────────────────────────── */
+    .deco { margin-top: var(--s-4); display: grid; gap: var(--s-3); }
+    .deco-row { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+    .deco-row > b { font-size: .78rem; font-weight: 700; color: var(--pico-muted-color);
+                    min-width: 2.6rem; }
+    .swatch {
+      width: 30px; height: 30px; padding: 0; margin: 0; border-radius: 9px;
+      border: 2px solid transparent; box-shadow: 0 0 0 1px var(--pico-muted-border-color) inset;
+      background: var(--sw);
+    }
+    .swatch.on { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
+    .deco-chip {
+      margin: 0; padding: .32rem .7rem; border-radius: 999px; font-size: .78rem; font-weight: 700;
+      background: transparent; color: var(--pico-muted-color);
+      border: 1px solid var(--pico-muted-border-color); width: auto;
+    }
+    .deco-chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+    /* ── 작품을 눌렀을 때: 정보 + 자리 옮기기 ─────────────────────── */
+    .r3-sheet {
+      margin-top: var(--s-4); padding: var(--s-4);
+      border: 1px solid var(--pico-muted-border-color); border-radius: var(--radius-md);
+      background: var(--pico-card-background-color);
+    }
+    .r3-sheet h4 { margin: 0 0 2px; font-size: 1rem; font-weight: 800; }
+    .r3-sheet .meta { font-size: .78rem; color: var(--pico-muted-color); margin-bottom: var(--s-3); }
+    .r3-sheet .nudge { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .r3-sheet .nudge button {
+      margin: 0; width: auto; padding: .34rem .62rem; font-size: .8rem; font-weight: 700;
+      border-radius: 9px; border: 1px solid var(--pico-muted-border-color);
+      background: transparent; color: var(--pico-color);
+    }
+    .r3-sheet .nudge button.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .r3-sheet .nudge .sp { width: 100%; height: 0; }
+
+    .wall-empty { text-align: center; color: var(--pico-muted-color); font-size: .9rem; padding: var(--s-6) 0; }
 
     /* ── 그림 주변으로 번지는 반짝임 ─────────────────────────────────
        액자 안에서만 반짝이면 '유리 반사'로 끝난다. 드릴이 빛을 튕겨
        주변 공기까지 밝히는 느낌이 나야 한다. */
-    .frame-box {
-      box-shadow:
-        0 14px 26px -12px rgba(30,18,8,.6),
-        0 2px 0 rgba(255,255,255,.18) inset,
-        0 0 0 0 rgba(255,240,205,0);
+    .art3 .frame-box {
       animation: frameGlow 5.5s ease-in-out infinite;
       animation-delay: calc(var(--n, 0) * .9s);
     }
@@ -2109,9 +2185,7 @@
                                   0 2px 0 rgba(255,255,255,.18) inset,
                                   0 0 26px 6px rgba(255,238,190,.55); }
     }
-
-    /* 액자 바깥으로 튀는 반짝 입자 */
-    .frame::after {
+    .art3::after {
       content: ""; position: absolute; inset: -18px; pointer-events: none; z-index: 2;
       background:
         radial-gradient(circle, rgba(255,255,255,.95) 0 1.3px, transparent 2.6px) 4% 16% / 100% 100% no-repeat,
@@ -2131,8 +2205,9 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .frame-box { animation: none; }
-      .frame::after { animation: none; opacity: 0; }
+      .r3-stage { transition: none; }
+      .art3 .frame-box, .art3::after { animation: none; }
+      .art3::after { opacity: 0; }
     }
 
     /* ═══ 마감 손질 ════════════════════════════════════════════════════
@@ -3238,8 +3313,89 @@
       const map = {}; sorted.forEach((it, i) => { map[it.id] = i + 1; }); return map;
     }
 
+    // ── 나의 전시실: 방 하나를 짓고 거기에 건다 ──────────────────────
+    // 단위를 한 가지로 통일한다. 1cm = 2.6px. 방은 420 × 250 × 420cm.
+    // 이래야 55cm 작품과 110cm 작품이 벽에서도 실제 비율대로 보인다.
+    const CM = 2.6, ROOM_CM = { w: 420, h: 250, d: 420 }, HANG_CM = 145;  // 그림 중심 높이(미술관 관례)
+    const ROOM_KEY = "dp-room";
+
+    const WALL_PALETTES = {
+      cream: ["#efe7da", "#e3d8c7", "#f7f2e8"],
+      mist:  ["#dfe3e7", "#cdd3d9", "#f2f4f6"],
+      sage:  ["#dce3d6", "#c7d1bd", "#eef2e9"],
+      ink:   ["#3b3746", "#2b2833", "#4a4657"],
+    };
+    const FLOOR_PALETTES = {
+      oak:      ["#8a6a48", "#6d5136"],
+      walnut:   ["#5a4131", "#412f23"],
+      concrete: ["#8d8a86", "#7b7874"],
+      rug:      ["#6b4152", "#573343"],
+    };
+    const FRAME_TONES = { wood: "원목", black: "블랙", gold: "골드", white: "화이트" };
+
+    function roomCfg() {
+      let c = {};
+      try { c = JSON.parse(localStorage.getItem(ROOM_KEY)) || {}; } catch {}
+      return { wall: c.wall || "cream", floor: c.floor || "oak", frame: c.frame || "wood", place: c.place || {} };
+    }
+    function saveRoom(c) { try { localStorage.setItem(ROOM_KEY, JSON.stringify(c)); } catch {} }
+
+    // "65 × 86.9 cm" → {w:65, h:86.9}. 못 읽으면 40×50 으로 둔다.
+    function artCm(item) {
+      const m = String(item.size || "").match(/([\d.]+)\s*[×xX*]\s*([\d.]+)/);
+      let w = m ? +m[1] : 40, h = m ? +m[2] : 50;
+      if (!(w > 0) || !(h > 0)) { w = 40; h = 50; }
+      return { w: Math.min(w, 200), h: Math.min(h, 200) };
+    }
+
+    // 자리를 안 정한 작품은 알아서 건다. 정면을 먼저 채우고 좌·우로 넘긴다.
+    const WALL_ORDER = ["back", "back", "back", "left", "left", "right", "right"];
+    function autoPlace(list, place) {
+      const byWall = { back: [], left: [], right: [] };
+      list.forEach((it, i) => {
+        const w = (place[it.id] && place[it.id].w) || WALL_ORDER[i % WALL_ORDER.length];
+        byWall[w] ? byWall[w].push(it) : byWall.back.push(it);
+      });
+      const out = {};
+      for (const w of ["back", "left", "right"]) {
+        const arr = byWall[w];
+        arr.forEach((it, k) => {
+          const saved = place[it.id];
+          const x = saved && saved.x != null ? saved.x : ((k + 1) / (arr.length + 1)) * 100;
+          const y = saved && saved.y != null ? saved.y : (1 - HANG_CM / ROOM_CM.h) * 100;
+          out[it.id] = { w, x, y };
+        });
+      }
+      return out;
+    }
+
+    function artNode(i, idx, cls) {
+      const cm = artCm(i);
+      const w = Math.round(cm.w * CM * ROOM_FIT), h = Math.round(cm.h * CM * ROOM_FIT);
+      const art = i.photo
+        ? `<img src="${i.photo}" alt="${escapeHtml(i.name)}" />`
+        : `<span class="dp-mono">${escapeHtml((i.name || "?").trim().charAt(0) || "?")}</span>`;
+      return { w, h, html: `
+        <span class="frame-hook" aria-hidden="true"></span>
+        <div class="frame-box">
+          <div class="frame-mat">
+            <div class="frame-art" style="aspect-ratio:${cm.w}/${cm.h}">${art}</div>
+            <span class="frame-glass" aria-hidden="true"></span>
+            <span class="frame-twinkle" aria-hidden="true"></span>
+          </div>
+        </div>` };
+    }
+
+    let ROOM_FIT = 1;
     function renderAlbum() {
       const el = $("albumView");
+      // 방 전체를 화면에 우겨넣으면 폰에서는 4m 벽이 통째로 들어와
+      // 55cm 작품이 손톱만 해진다. 대신 '한 번에 보이는 벽 폭'을 정하고
+      // 거기에 맞춘다 — 화면이 좁을수록 벽 앞으로 다가선 것처럼 된다.
+      // (0.822 = 뒷벽이 원근 때문에 줄어드는 비율, 실측값)
+      const boxW = el.clientWidth || document.body.clientWidth || 700;
+      const spanCm = Math.max(230, Math.min(460, boxW * 0.55));
+      ROOM_FIT = Math.max(0.35, Math.min(1.15, boxW / (spanCm * CM * 0.822)));
       const vis = shown();
       const noMap = dexNumbers(vis);
       const doneN = vis.filter((i) => i.status === "done").length;
@@ -3249,49 +3405,41 @@
       const totalCells = vis.reduce((s, i) => s + doneCount(i), 0);
       const list = [...vis].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
-      // 완성작은 벽에 건다. 아직 붙이는 중인 건 아래 '작업실'에 둔다.
       const doneList = list.filter((i) => i.status === "done");
       const wipList  = list.filter((i) => i.status !== "done");
 
-      const frame = (i, idx) => {
+      const cfg = roomCfg();
+      const placed = autoPlace(doneList, cfg.place);
+      const wallArt = { back: "", left: "", right: "" };
+
+      doneList.forEach((i, idx) => {
+        const pl = placed[i.id];
+        const n = artNode(i, idx);
         const no = String(noMap[i.id]).padStart(3, "0");
-        const art = i.photo
-          ? `<img src="${i.photo}" alt="${escapeHtml(i.name)}" />`
-          : `<span class="dp-mono">${escapeHtml((i.name || "?").trim().charAt(0) || "?")}</span>`;
-        return `<figure class="frame" data-dex="${i.id}" style="--ar:${artRatio(i)};--n:${idx};--w:${frameWidth(i)}px">
-          <span class="frame-hook" aria-hidden="true"></span>
-          <div class="frame-box">
-            <div class="frame-mat">
-              <div class="frame-art">${art}</div>
-              <span class="frame-glass" aria-hidden="true"></span>
-              <span class="frame-twinkle" aria-hidden="true"></span>
-            </div>
-          </div>
-          <figcaption class="frame-plate">
-            <b>${escapeHtml(i.name)}</b>
-            <span>#${no}${i.end ? ` · ${fmtK(i.end)} 완성` : ""}${i.hours ? ` · ${fmtHours(i.hours)}` : ""}</span>
-            ${i.rating ? `<span class="frame-stars">${ratingStars(i.rating)}</span>` : ""}
+        wallArt[pl.w] += `<figure class="art3" data-dex="${i.id}"
+            style="--w:${n.w}px;--n:${idx};left:${pl.x.toFixed(1)}%;top:${pl.y.toFixed(1)}%">
+          ${n.html}
+          <figcaption class="plate3"><b>${escapeHtml(i.name)}</b>
+            <span>#${no}${i.end ? ` · ${fmtK(i.end)}` : ""}${i.rating ? ` · ${ratingStars(i.rating)}` : ""}</span>
           </figcaption>
         </figure>`;
-      };
+      });
 
-      const wall = doneList.length
-        ? doneList.map(frame).join("")
-        : `<p class="wall-empty">아직 걸린 작품이 없어요.<br>첫 작품을 완성하면 여기에 걸립니다.</p>`;
+      // 붙이는 중인 건 바닥에 기대 세워둔다 — 방에 사람이 사는 티가 난다
+      const leaning = wipList.slice(0, 4).map((i, k) => {
+        const n = artNode(i, k);
+        const x = 14 + k * 22;
+        return `<figure class="lean3" data-dex="${i.id}" style="--w:${Math.round(n.w * 0.72)}px;left:${x}%">${n.html}</figure>`;
+      }).join("");
 
-      const shelf = wipList.map((i) => {
-        const no = String(noMap[i.id]).padStart(3, "0");
-        const st = STATUS[i.status] || STATUS.planned;
-        const art = i.photo ? `<img src="${i.photo}" alt="" />`
-                            : `<span class="dp-mono">${escapeHtml((i.name || "?").trim().charAt(0) || "?")}</span>`;
-        return `<article class="shelf-item" data-dex="${i.id}">
-          <div class="shelf-thumb" style="--ar:${artRatio(i)}">${art}</div>
-          <div class="shelf-info">
-            <b>${escapeHtml(i.name)}</b>
-            <span>#${no} · ${st.label} · ${pct(i)}%</span>
-            <div class="dex-mini-progress"><i style="width:${pct(i)}%"></i></div>
-          </div>
-        </article>`;
+      const [wa, wb, sk] = WALL_PALETTES[cfg.wall] || WALL_PALETTES.cream;
+      const [fa, fb] = FLOOR_PALETTES[cfg.floor] || FLOOR_PALETTES.oak;
+
+      const sw = (kind, key, map, cur) => Object.keys(map).map((k) => {
+        const c = map[k];
+        const bg = kind === "floor" ? `linear-gradient(135deg, ${c[0]}, ${c[1]})` : c[0];
+        return `<button type="button" class="swatch ${k === cur ? "on" : ""}" data-deco="${kind}" data-val="${k}"
+                  style="--sw:${bg}" aria-label="${k}"></button>`;
       }).join("");
 
       const counts = [`완성 <b>${doneN}</b>`, `진행 <b>${progN}</b>`, `계획 <b>${planN}</b>`];
@@ -3305,29 +3453,197 @@
             <p class="dex-sub">${doneN ? `벽에 걸린 작품 <b>${doneN}</b>점` : "첫 작품을 완성하면 여기에 걸립니다"}</p>
             <div class="dex-counts">${counts.join(" · ")}</div>
           </div>
-          <div class="room">
-            <div class="room-ceiling" aria-hidden="true">
-              <span class="track"></span>
-              <span class="lamp" style="--x:18%"></span>
-              <span class="lamp" style="--x:50%"></span>
-              <span class="lamp" style="--x:82%"></span>
-            </div>
-            <div class="room-wall">
-              <span class="wall-rail" aria-hidden="true"></span>
-              <div class="wall-grid">${wall}
-                <button type="button" class="frame-slot" data-dex-new="1">
-                  <span>＋</span><small>다음 작품 자리</small>
-                </button>
+
+          <div class="r3-wrap">
+            <div class="r3" id="r3" style="--fit:${ROOM_FIT.toFixed(3)};--wallA:${wa};--wallB:${wb};--skirt:${sk};--floorA:${fa};--floorB:${fb}">
+              <div class="r3-stage" id="r3stage">
+                <div class="r3-surf r3-ceil">
+                  <span class="r3-lamp" style="left:32%"></span>
+                  <span class="r3-lamp" style="left:68%"></span>
+                </div>
+                <div class="r3-surf r3-floor"></div>
+                <div class="r3-surf r3-wall r3-left">${wallArt.left}</div>
+                <div class="r3-surf r3-wall r3-right">${wallArt.right}</div>
+                <div class="r3-surf r3-wall r3-back">${wallArt.back}${leaning}</div>
+              </div>
+              <span class="r3-hint">끌어서 둘러보세요 · 작품을 누르면 자리를 옮겨요</span>
+              <div class="r3-zoom">
+                <button type="button" data-zoom="-1" aria-label="뒤로">−</button>
+                <button type="button" data-zoom="1" aria-label="앞으로">＋</button>
               </div>
             </div>
-            <div class="room-floor" aria-hidden="true"><span class="baseboard"></span></div>
+
+            ${doneN ? "" : `<p class="wall-empty">아직 걸린 작품이 없어요. 첫 작품을 완성하면 이 벽에 걸립니다.</p>`}
+
+            <div class="deco">
+              <div class="deco-row"><b>벽</b>${sw("wall", "wall", WALL_PALETTES, cfg.wall)}</div>
+              <div class="deco-row"><b>바닥</b>${sw("floor", "floor", FLOOR_PALETTES, cfg.floor)}</div>
+              <div class="deco-row"><b>액자</b>${Object.keys(FRAME_TONES).map((k) =>
+                `<button type="button" class="deco-chip ${k === cfg.frame ? "on" : ""}" data-deco="frame" data-val="${k}">${FRAME_TONES[k]}</button>`).join("")}</div>
+            </div>
+
+            <div class="r3-sheet" id="r3sheet" hidden></div>
           </div>
-          ${wipList.length ? `<div class="studio">
-            <h3>작업실</h3>
-            <div class="studio-grid">${shelf}</div>
-          </div>` : ""}
         </section>`;
+
+      applyFrameTone(cfg.frame);
+      bindRoom();
     }
+
+    // 액자 색은 CSS 변수 하나로 갈아끼운다
+    function applyFrameTone(tone) {
+      const map = {
+        wood:  ["#7a5a3a", "#3d2d1e", "#5d4126"],
+        black: ["#3a3a3e", "#141416", "#26262a"],
+        gold:  ["#c8a45a", "#8a6a23", "#a8863c"],
+        white: ["#f2efe9", "#cfc9bd", "#e4dfd5"],
+      };
+      const [a, b, c] = map[tone] || map.wood;
+      document.querySelectorAll(".r3 .frame-box, .r3 .lean3 .frame-box").forEach((el) => {
+        el.style.background = `linear-gradient(150deg, ${a}, ${b} 46%, ${c})`;
+      });
+    }
+
+    // ── 카메라 + 꾸미기 + 자리 옮기기 ────────────────────────────────
+    let camYaw = 0, camPitch = 0, camDolly = 0, camSel = null;
+    function camApply() {
+      const r = $("r3"); if (!r) return;
+      r.style.setProperty("--yaw", camYaw.toFixed(2) + "deg");
+      r.style.setProperty("--pitch", camPitch.toFixed(2) + "deg");
+      r.style.setProperty("--dolly", camDolly.toFixed(0) + "px");
+    }
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+    function bindRoom() {
+      const r = $("r3"); if (!r) return;
+      camApply();
+
+      let drag = null, moved = 0, pinch = null;
+      r.addEventListener("pointerdown", (e) => {
+        if (e.isPrimary === false) return;
+        drag = { x: e.clientX, y: e.clientY, yaw: camYaw, pitch: camPitch,
+                 hit: e.target.closest(".art3, .lean3") };
+        moved = 0; r.classList.add("dragging");
+        r.setPointerCapture(e.pointerId);
+      });
+      r.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        moved = Math.max(moved, Math.abs(dx) + Math.abs(dy));
+        camYaw = clamp(drag.yaw + dx * 0.16, -42, 42);
+        camPitch = clamp(drag.pitch - dy * 0.08, -12, 16);
+        camApply();
+        if (moved > 6) r.classList.add("moved");
+      });
+      const endDrag = () => {
+        if (!drag) return;
+        const hit = drag.hit;
+        drag = null; r.classList.remove("dragging");
+        if (moved < 6) selectArt(hit ? hit.dataset.dex : null);   // 끌지 않고 톡 눌렀다 = 선택
+      };
+      r.addEventListener("pointerup", endDrag);
+      r.addEventListener("pointercancel", () => { drag = null; r.classList.remove("dragging"); });
+
+      // 트랙패드 핀치(ctrl+휠)만 확대로 쓴다. 맨 휠은 페이지 스크롤 그대로.
+      r.addEventListener("wheel", (e) => {
+        if (!e.ctrlKey) return;
+        e.preventDefault();
+        camDolly = clamp(camDolly - e.deltaY * 4, -300, 430);
+        r.classList.add("moved"); camApply();
+      }, { passive: false });
+
+      // 두 손가락으로 벌리면 다가간다
+      const pts = new Map();
+      r.addEventListener("pointerdown", (e) => pts.set(e.pointerId, e));
+      r.addEventListener("pointermove", (e) => {
+        if (!pts.has(e.pointerId)) return;
+        pts.set(e.pointerId, e);
+        if (pts.size !== 2) return;
+        const [a, b] = [...pts.values()];
+        const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        if (pinch != null) { camDolly = clamp(camDolly + (d - pinch) * 1.6, -300, 430); camApply(); }
+        pinch = d; drag = null;
+      });
+      const drop = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+      r.addEventListener("pointerup", drop);
+      r.addEventListener("pointercancel", drop);
+
+      r.querySelectorAll("[data-zoom]").forEach((b) => b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        camDolly = clamp(camDolly + (+b.dataset.zoom) * 120, -300, 430);
+        r.classList.add("moved"); camApply();
+      }));
+
+      // 꾸미기
+      $("albumView").querySelectorAll("[data-deco]").forEach((b) => b.addEventListener("click", () => {
+        const c = roomCfg(); c[b.dataset.deco] = b.dataset.val; saveRoom(c); renderAlbum();
+      }));
+
+      if (camSel) selectArt(camSel, true);
+    }
+
+    function selectArt(id, keepScroll) {
+      camSel = id;
+      const sheet = $("r3sheet"); if (!sheet) return;
+      document.querySelectorAll(".art3").forEach((f) => f.classList.toggle("sel", f.dataset.dex === id));
+      if (!id) { sheet.hidden = true; sheet.innerHTML = ""; return; }
+
+      const it = items.find((x) => x.id === id);
+      if (!it) { sheet.hidden = true; return; }
+      const cm = artCm(it);
+      const meta = [
+        `${cm.w} × ${cm.h} cm`,
+        it.end ? `${fmtK(it.end)} 완성` : STATUS[it.status].label,
+        it.hours ? fmtHours(it.hours) : null,
+      ].filter(Boolean).join(" · ");
+
+      const onWall = it.status === "done";
+      const pl = (roomCfg().place || {})[id] || {};
+      sheet.hidden = false;
+      sheet.innerHTML = `
+        <h4>${escapeHtml(it.name)}</h4>
+        <p class="meta">${meta}</p>
+        ${onWall ? `<div class="nudge">
+          <button type="button" data-wall="left"  class="${pl.w === "left" ? "on" : ""}">왼쪽 벽</button>
+          <button type="button" data-wall="back"  class="${pl.w === "back" || !pl.w ? "on" : ""}">정면</button>
+          <button type="button" data-wall="right" class="${pl.w === "right" ? "on" : ""}">오른쪽 벽</button>
+          <span class="sp"></span>
+          <button type="button" data-nudge="x-">← 왼쪽</button>
+          <button type="button" data-nudge="x+">오른쪽 →</button>
+          <button type="button" data-nudge="y-">↑ 위</button>
+          <button type="button" data-nudge="y+">↓ 아래</button>
+          <button type="button" data-nudge="reset">자리 초기화</button>
+        </div>` : `<p class="meta">완성하면 벽에 걸려요.</p>`}`;
+
+      sheet.querySelectorAll("[data-wall]").forEach((b) => b.addEventListener("click", () => {
+        const c = roomCfg();
+        c.place[id] = { ...(c.place[id] || {}), w: b.dataset.wall, x: null, y: null };
+        saveRoom(c); renderAlbum();
+      }));
+      sheet.querySelectorAll("[data-nudge]").forEach((b) => b.addEventListener("click", () => {
+        const c = roomCfg();
+        const cur = { ...(autoPlace(items.filter((i) => i.status === "done")
+                       .sort((a, z) => (a.createdAt || 0) - (z.createdAt || 0)), c.place)[id] || {}) };
+        const k = b.dataset.nudge;
+        if (k === "reset") delete c.place[id];
+        else {
+          if (k === "x-") cur.x = clamp(cur.x - 6, 6, 94);
+          if (k === "x+") cur.x = clamp(cur.x + 6, 6, 94);
+          if (k === "y-") cur.y = clamp(cur.y - 5, 10, 78);
+          if (k === "y+") cur.y = clamp(cur.y + 5, 10, 78);
+          c.place[id] = { w: cur.w, x: cur.x, y: cur.y };
+        }
+        saveRoom(c); renderAlbum();
+      }));
+      if (!keepScroll) sheet.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+
+    let _roomResize;
+    window.addEventListener("resize", () => {
+      if (view !== "album") return;
+      clearTimeout(_roomResize);
+      _roomResize = setTimeout(renderAlbum, 180);
+    });
 
     function setView(v) {
       view = v; localStorage.setItem("dp-view", v);
