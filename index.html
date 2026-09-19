@@ -868,7 +868,7 @@
     [data-theme="light"] .more-menu > summary:hover { background: rgba(30,20,48,0.06); color: #2b2235; }
     .more-menu svg { width: 22px; height: 22px; fill: currentColor; }
     .more-panel {
-      position: absolute; right: 0; top: 46px; z-index: 60; min-width: 168px;
+      position: absolute; right: 0; top: 46px; z-index: 60; min-width: 196px;
       display: grid; padding: 0.3rem; border-radius: var(--shape-lg);
       background: var(--plum-850); border: 1px solid var(--plum-700);
       box-shadow: var(--shadow-2);
@@ -879,6 +879,9 @@
       background: transparent; border: 0; border-radius: var(--shape-sm); color: inherit; width: 100%;
     }
     .more-panel button:hover { background: var(--plum-800); }
+    /* 테마 버튼만 두 줄 — 아랫줄은 다음에 바뀌는 시각 */
+    .more-panel button small { display: block; margin-top: .12rem; font-weight: 400;
+                               font-size: .74rem; color: var(--pico-muted-color); word-break: keep-all; }
     [data-theme="light"] .more-panel button:hover { background: rgba(30,20,48,0.06); }
 
     /* 요약 한 줄 — 제목에 딸린 부제처럼 */
@@ -4007,23 +4010,90 @@
       fillFromCatalog(acCurrent[+li.dataset.i]);
     });
 
-    // ---------- 테마 ----------
-    function applyTheme(t) {
+    // ---------- 테마: 자동(해 기준) / 밝게 / 어둡게 ----------
+    const MODE_KEY = "dp-theme-mode";          // auto | light | dark
+
+    // 해 뜨고 지는 시각 (NOAA 간이식). 분 단위 오차면 충분하다.
+    // 반환값은 그날의 '현지 시각'을 소수 시간으로 (예: 19.03 = 19시 2분).
+    function sunTimes(date, lat, lon) {
+      const rad = Math.PI / 180;
+      const dayOfYear = Math.floor(
+        (Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) -
+         Date.UTC(date.getFullYear(), 0, 0)) / 86400000);
+      const lngHour = lon / 15;
+      const tzHour = -date.getTimezoneOffset() / 60;
+      const out = {};
+      for (const which of ["rise", "set"]) {
+        const t = dayOfYear + ((which === "rise" ? 6 : 18) - lngHour) / 24;
+        const M = 0.9856 * t - 3.289;
+        let L = M + 1.916 * Math.sin(M * rad) + 0.020 * Math.sin(2 * M * rad) + 282.634;
+        L = ((L % 360) + 360) % 360;
+        let RA = Math.atan(0.91764 * Math.tan(L * rad)) / rad;
+        RA = ((RA % 360) + 360) % 360;
+        RA += (Math.floor(L / 90) * 90) - (Math.floor(RA / 90) * 90);
+        RA /= 15;
+        const sinDec = 0.39782 * Math.sin(L * rad);
+        const cosDec = Math.cos(Math.asin(sinDec));
+        const cosH = (Math.cos(90.833 * rad) - sinDec * Math.sin(lat * rad)) / (cosDec * Math.cos(lat * rad));
+        if (cosH > 1 || cosH < -1) return null;          // 백야·극야
+        let H = which === "rise" ? 360 - Math.acos(cosH) / rad : Math.acos(cosH) / rad;
+        H /= 15;
+        const UT = H + RA - 0.06571 * t - 6.622 - lngHour;
+        out[which] = (((UT + tzHour) % 24) + 24) % 24;
+      }
+      return out;
+    }
+
+    // 위치는 묻지 않는다(권한창을 띄울 만한 기능이 아니다).
+    // 서울이면 실제 좌표로 정확히, 그 밖이면 시계로 7시~19시.
+    function sunToday() {
+      let tz = "";
+      try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch {}
+      if (tz !== "Asia/Seoul") return null;
+      try { return sunTimes(new Date(), 37.5665, 126.9780); } catch { return null; }
+    }
+
+    function autoTheme() {
+      const now = new Date();
+      const h = now.getHours() + now.getMinutes() / 60;
+      const sun = sunToday();
+      if (!sun) return (h >= 7 && h < 19) ? "light" : "dark";
+      return (h >= sun.rise && h < sun.set) ? "light" : "dark";
+    }
+
+    const hhmm = (x) => `${String(Math.floor(x)).padStart(2, "0")}:${String(Math.round((x % 1) * 60)).padStart(2, "0")}`;
+
+    function themeMode() { try { return localStorage.getItem(MODE_KEY) || "auto"; } catch { return "auto"; } }
+
+    function applyTheme(mode) {
+      const t = mode === "auto" ? autoTheme() : mode;
       document.documentElement.setAttribute("data-theme", t);
+      try { localStorage.setItem(MODE_KEY, mode); localStorage.setItem(THEME_KEY, t); } catch {}
+
       const b = $("btnTheme");
-      b.textContent = t === "dark" ? "밝은 화면으로" : "어두운 화면으로";
-      b.setAttribute("aria-label", t === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환");
-      b.setAttribute("title", t === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환");
-      localStorage.setItem(THEME_KEY, t);
+      if (mode === "auto") {
+        const sun = sunToday();
+        // 다음에 바뀌는 시각을 같이 보여준다 — 자동이 뭘 하는지 말로 설명할 필요가 없어진다.
+        const when = sun ? (t === "light" ? `${hhmm(sun.set)}에 어두워져요` : `${hhmm(sun.rise)}에 밝아져요`)
+                         : (t === "light" ? "19:00에 어두워져요" : "07:00에 밝아져요");
+        b.innerHTML = `화면: 자동<small>${when}</small>`;
+      } else {
+        b.innerHTML = mode === "light" ? "화면: 밝게<small>해가 져도 그대로</small>"
+                                       : "화면: 어둡게<small>해가 떠도 그대로</small>";
+      }
+      b.setAttribute("aria-label", "화면 밝기 바꾸기 (자동 → 밝게 → 어둡게)");
+      b.setAttribute("title", "자동 → 밝게 → 어둡게 순서로 바뀌어요");
     }
     document.addEventListener("click", (e) => {
       const m = $("moreMenu");
       if (m && m.open && !m.contains(e.target)) m.open = false;
     });
-    $("btnTheme").addEventListener("click", () => {
-      applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
-    });
-    applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+    const MODE_CYCLE = { auto: "light", light: "dark", dark: "auto" };
+    $("btnTheme").addEventListener("click", () => applyTheme(MODE_CYCLE[themeMode()]));
+
+    applyTheme(themeMode());
+    // 켜둔 채로 해가 지는 경우가 있다. 1분마다 확인하고, 바뀔 때만 갈아끼운다.
+    setInterval(() => { if (themeMode() === "auto") applyTheme("auto"); }, 60000);
 
     // 브라우저에 "이 데이터는 공간이 모자라도 지우지 마"라고 등록한다. 조용히, 한 번만.
     if (navigator.storage && navigator.storage.persist) {
