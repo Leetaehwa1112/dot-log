@@ -664,7 +664,21 @@
     }
     .safety-btn:hover { filter: brightness(1.08); }
 
-    footer.dp-foot { text-align: center; color: var(--pico-muted-color); font-size: 0.8rem; padding: 2rem 0; line-height: 1.6; }
+    /* 가운데 정렬은 한 줄일 때만 읽힌다. 두 줄로 넘어가면 줄 끝이 들쭉날쭉해
+       "…이 브라우저 / 에 자동 저장돼요" 처럼 엉뚱한 데서 끊긴다. */
+    footer.dp-foot {
+      text-align: left; text-wrap: pretty; color: var(--pico-muted-color);
+      font-size: .8rem; line-height: 1.7; padding: 1.6rem 0 .4rem;
+      max-width: 34rem;
+    }
+    /* 본문 속 링크가 아래 큰 버튼과 같은 분홍이면 둘이 싸운다. 여기선 물러선다. */
+    footer.dp-foot .link-btn, footer.dp-foot a {
+      color: var(--pico-muted-color); font-weight: 500;
+      text-decoration-color: color-mix(in srgb, var(--brand) 55%, transparent);
+      text-underline-offset: 3px;
+    }
+    footer.dp-foot .link-btn:hover, footer.dp-foot a:hover { color: var(--brand); }
+    .trust-line { text-align: left; }
 
     /* ── 14. 토스트 · 콘페티 (Behavioral 피드백) ──────────────── */
     .dp-toast {
@@ -943,6 +957,18 @@
 
     /* 라지 타이틀 */
     .dp-topbar { align-items: center; }
+
+    /* 로고가 화면 폭을 거의 다 먹은 채로 계속 붙어 있으면 본문이 밀린다.
+       스크롤을 시작하면 물러선다 — 그때부터는 이름보다 기록이 주인공이다. */
+    .dp-topbar .dotlog {
+      transform-origin: left center;
+      transition: transform var(--dur-2) var(--ease-out), opacity var(--dur-2) var(--ease-out);
+    }
+    body.scrolled .dp-topbar .dotlog { transform: scale(.62); opacity: .72; }
+    body.scrolled .dp-topbar { min-height: 48px; }
+    @media (prefers-reduced-motion: reduce) {
+      .dp-topbar .dotlog { transition: none; }
+    }
     .brand-mark { font-size: 1.6rem; letter-spacing: -0.02em; }
 
     /* ⋯ 메뉴 — 백업·불러오기·테마를 여기로 숨긴다 */
@@ -1174,6 +1200,11 @@
         var(--pico-card-background-color) calc(100% / var(--cells) - 2px) calc(100% / var(--cells)));
     }
     .dp-progress-wrap.celled progress { border-radius: 2px; }
+    /* 한 칸도 안 채웠으면 구분선 스무 개가 회색 줄무늬로만 남는다 — 정보가 아니라
+       무늬다. 그때는 선을 지우고 가느다란 빈 홈 하나만 둔다. */
+    .dp-progress-wrap.celled.is-zero::after { content: none; }
+    .dp-progress-wrap.is-zero progress { height: 4px; opacity: .5; }
+    .dp-progress-wrap.is-zero .pct { opacity: .62; }
 
     /* 완성한 작품은 골드로 한 번 더 말해준다 (밤의몰입 안에서 이식) */
     .dp-card.is-done {
@@ -1351,6 +1382,14 @@
 
     html, body, button, input, select, textarea { font-family: var(--font-ui); }
     body { background: var(--paper); color: var(--ink); }
+
+    /* 한국어는 어절 안에서 끊으면 안 읽힌다. 기본값(normal)은 글자 단위로 끊어서
+       "이 브라우저 / 에 자동 저장돼요" 처럼 조사만 다음 줄로 넘어간다.
+       keep-all 이면 띄어쓰기에서만 끊는다. 대신 아주 긴 영문 주소가 넘칠 수 있으니
+       그건 anywhere 로 따로 풀어 준다. */
+    body { word-break: keep-all; }
+    code, .mono, [class*="url"], .ac-sub { word-break: break-all; }
+    .dp-note, .sw-text small, .ia-text small { overflow-wrap: anywhere; }
 
     /* 튀어나온 표면 — 이 디자인의 서명 */
     .dp-card, .dex-card, .dp-empty,
@@ -1587,13 +1626,37 @@
         var(--surface) calc(100% / var(--cells) - 2px) calc(100% / var(--cells)));
     }
 
-    .nw-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-2); margin: 0 0 var(--s-4);
-               padding-top: var(--s-4); border-top: 2px solid var(--pico-muted-border-color); }
-    .nw-list dt { margin: 0 0 2px; font-size: .66rem; font-weight: 700; letter-spacing: .05em;
-                  text-transform: uppercase; color: var(--pico-muted-color); white-space: nowrap; }
-    .nw-list dd { margin: 0; font-size: 1.5rem; font-weight: 800; line-height: 1;
-                  font-variant-numeric: tabular-nums; letter-spacing: -0.03em; color: var(--ink); }
-    .nw-list > div:first-child dd { color: var(--brand); }
+    /* 넷을 같은 크기로 늘어놓으면 눈이 어디에 앉을지 모른다.
+       이 앱에서 보고 싶은 건 '얼마나 채웠나' 하나다 — 그것만 크게 두고
+       나머지는 곁다리로 물러선다. 첫 칸이 두 칸 폭을 먹는다. */
+    .nw-list {
+      display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: var(--s-2) var(--s-3);
+      align-items: end;
+      margin: 0 0 var(--s-4); padding-top: var(--s-4);
+      border-top: 1px solid color-mix(in srgb, var(--pico-muted-border-color) 70%, transparent);
+    }
+    .nw-list dt {
+      margin: 0 0 3px; font-size: .64rem; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--pico-muted-color); white-space: nowrap;
+    }
+    .nw-list dd {
+      margin: 0; font-size: 1.12rem; font-weight: 700; line-height: 1;
+      font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+      color: color-mix(in srgb, var(--ink) 78%, transparent);
+    }
+    /* 주인공 */
+    .nw-list .is-lead dd {
+      font-size: 2.4rem; font-weight: 900; letter-spacing: -0.045em;
+      color: var(--brand);
+    }
+    .nw-list .is-lead dd small {
+      font-size: .9rem; font-weight: 700; letter-spacing: -0.01em;
+      color: var(--pico-muted-color); margin-left: 1px;
+    }
+    @media (max-width: 340px) {
+      .nw-list { grid-template-columns: 1.5fr 1fr 1fr; }
+      .nw-list .is-lead dd { font-size: 2rem; }
+    }
 
     .nw-act {
       width: 100%; margin: 0 0 var(--s-3); min-height: var(--tap);
@@ -1612,9 +1675,14 @@
       position: absolute; left: var(--s-3); right: var(--s-3); bottom: var(--s-3); z-index: 6;
       display: grid; gap: 4px; padding: var(--s-3) var(--s-4);
       border-radius: 14px; text-align: left;
-      background: color-mix(in srgb, var(--ink) 90%, transparent);
-      color: var(--surface);
-      box-shadow: 0 8px 24px rgba(0,0,0,.28);
+      /* 앱이 통째로 어두운데 여기만 크림색이면 다른 앱에서 잘라 붙인 것처럼 보인다.
+         같은 면 위에 브랜드 테두리로 '여기를 보라'를 만든다. */
+      background: color-mix(in srgb, var(--paper) 94%, var(--brand));
+      color: var(--ink);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--brand) 45%, transparent),
+        0 10px 30px rgba(4, 2, 12, .5);
+      backdrop-filter: blur(6px);
       animation: hintIn .32s var(--ease) both;
     }
     .cell-hint b { font-size: .9rem; font-weight: 800; letter-spacing: -0.01em; }
@@ -3695,10 +3763,12 @@
         : `<span class="nw-mono">${escapeHtml((now.name || "?").trim().charAt(0) || "?")}</span>`;
 
       const metrics = now.grid
-        ? `<div><dt>남은 칸</dt><dd>${left}</dd></div>
-           <div><dt>채운 칸</dt><dd>${dn}</dd></div>
+        // 이 앱에서 보고 싶은 건 '얼마나 채웠나'다. 그걸 크게 하고 나머지는 물러선다.
+        // 넷이 같은 무게면 눈이 어디에 앉을지 모른다.
+        ? `<div class="is-lead"><dt>채운 칸</dt><dd>${dn}<small>/${cells}</small></dd></div>
            <div><dt>진행</dt><dd>${pct(now)}%</dd></div>
-           ${daysLeft ? `<div><dt>남은 날</dt><dd>${daysLeft}</dd></div>` : `<div><dt>전체 칸</dt><dd>${cells}</dd></div>`}`
+           <div><dt>남은 칸</dt><dd>${left}</dd></div>
+           ${daysLeft ? `<div><dt>남은 날</dt><dd>${daysLeft}</dd></div>` : ""}`
         : `<div><dt>진행</dt><dd>${pct(now)}%</dd></div>
            <div><dt>작품</dt><dd>${total}</dd></div>
            <div><dt>붙이는 중</dt><dd>${prog}</dd></div>
@@ -3860,7 +3930,7 @@
             <p class="dp-sub">${i.sample ? `<span class="tag-sample">예시</span>` : ""}${metaMain}</p>
             ${metaSub ? `<p class="dp-sub muted">${metaSub}</p>` : ""}
             ${i.rating && i.status !== "planned" ? `<p class="dp-sub">${ratingStars(i.rating)}</p>` : ""}
-            <div class="dp-progress-wrap${i.grid ? " celled" : ""}" style="--cells:${i.grid ? totalCells(i) : 1}">
+            <div class="dp-progress-wrap${i.grid ? " celled" : ""}${p === 0 ? " is-zero" : ""}" style="--cells:${i.grid ? totalCells(i) : 1}">
               <div class="pct"><span>${i.grid ? `${doneCount(i)}/${totalCells(i)}칸` : "진행"}</span><span>${p}%</span></div>
               <progress value="${_lastPct["c" + i.id] ?? 0}" max="100" data-k="c${i.id}" data-target="${p}"></progress>
             </div>
@@ -5981,6 +6051,18 @@
       heroFlipped = !heroFlipped;
       f.classList.toggle("flipped", heroFlipped);
     });
+
+    // 스크롤을 시작하면 로고를 물린다. 한 번 정하고 나면 더 안 만진다 —
+    // 스크롤마다 클래스를 껐다 켜면 그게 더 산만하다.
+    (function shrinkOnScroll() {
+      let on = false;
+      const tick = () => {
+        const should = window.scrollY > 24;
+        if (should !== on) { on = should; document.body.classList.toggle("scrolled", on); }
+      };
+      addEventListener("scroll", tick, { passive: true });
+      tick();
+    })();
 
     renderAll();
     setView(view);
