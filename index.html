@@ -2331,17 +2331,21 @@
 
     @media (pointer: coarse) {
       /* iOS 는 16px 미만 입력칸에 초점이 가면 화면을 통째로 확대하고 그대로 둔다.
-         확대를 막는 대신 원인을 없앤다. */
-      input, select, textarea, button { font-size: max(16px, 1em); }
+         확대를 막는 대신 원인을 없앤다.
+         ★ !important 를 쓴 이유: 여기 값들은 취향이 아니라 접근성 하한선이다.
+           앞쪽의 더 구체적인 장식 규칙(.dp-card-actions .ghost 같은 것)에
+           조용히 밀려서 실제로는 38px 로 렌더되고 있었다 — 실측으로 확인했다. */
+      input, select, textarea, button,
+      #sortBy, #f_perDay { font-size: max(16px, 1em) !important; }
 
       /* 손가락 표적: 애플 44pt · 머티리얼 48dp → 44 를 최소선으로.
          진행 격자(.ccell)는 그림 위의 좌표라서 키우면 뜻이 깨진다 — 손대지 않는다. */
-      .vs-btn, .more-panel button, .ghost, .fold-btn, .now-btn,
-      #sortBy, select, .link-btn, .deco-chip { min-height: 44px; }
+      .vs-btn, .more-panel button, .dp-card-actions .ghost, .cell-hint button,
+      .fold-btn, .now-btn, #sortBy, select, .link-btn, .deco-chip,
+      .skip-link, .sess-del { min-height: 44px !important; }
       .dp-utils summary { min-width: 44px; min-height: 44px; }
-      .swatch { width: 44px; height: 44px; }
-      .sess-del { min-width: 44px; min-height: 44px; }
-      .card-actions { flex-wrap: wrap; }
+      .swatch { width: 44px !important; height: 44px !important; }
+      .dp-card-actions, .card-actions { flex-wrap: wrap; }
     }
 
     /* 320px(구형 SE·폴드 접힘)에서도 넘치지 않게 */
