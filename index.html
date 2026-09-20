@@ -345,17 +345,44 @@
     .dp-stat .label { color: var(--pico-muted-color); font-size: 0.74rem; margin-top: 0.3rem; line-height: 1.25; }
 
     /* ── 7. 뷰 전환 ───────────────────────────────────────────── */
+    /* 두 칸짜리 전환 스위치.
+       전에는 선택된 칸을 옅은 색으로만 칠해서 안 선택된 칸과 배경 대비가
+       1.20:1 이었다 — 어느 쪽이 켜진 건지 안 보였다.
+       홈이 패인 자국(트랙) 위에 선택된 칸만 올라앉는 모양으로 바꾼다.
+       색이 아니라 '면의 높이'로 말하니 CTA 의 핑크와도 안 싸운다. */
     .view-switch {
-      display: flex; width: fit-content; gap: 0.25rem; padding: 0.25rem; margin: 0 auto 1.1rem;
-      background: var(--pico-card-sectioning-background-color);
-      border: 1px solid var(--pico-muted-border-color); border-radius: 999px;
+      display: flex; width: fit-content; gap: 0; padding: 4px; margin: 0 auto 1.1rem;
+      background: color-mix(in srgb, var(--paper) 88%, #000);
+      border: 1px solid color-mix(in srgb, var(--pico-muted-border-color) 60%, transparent);
+      border-radius: 999px;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, .28);
     }
     .vs-btn {
-      width: auto; margin: 0; border: none; background: transparent; color: var(--pico-muted-color);
-      border-radius: 999px; padding: 0.5rem 1.1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      width: auto; margin: 0; border: none; background: transparent;
+      color: var(--pico-muted-color);
+      border-radius: 999px; padding: 0.5rem 1.05rem;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: .35rem;
+      transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+    }
+    /* 선택된 칸에 붙는 개수 */
+    .vs-n:empty { display: none; }
+    .vs-n {
+      min-width: 1.15rem; padding: 1px 5px; border-radius: 999px;
+      font-size: .72rem; font-weight: 800; line-height: 1.35;
+      font-variant-numeric: tabular-nums;
+      background: color-mix(in srgb, var(--ink) 13%, transparent);
+      color: var(--pico-muted-color);
+    }
+    .vs-btn.active .vs-n {
+      background: color-mix(in srgb, var(--brand) 88%, transparent); color: #fff;
     }
     .vs-btn:hover { color: var(--pico-color); }
-    .vs-btn.active { background: var(--accent-quiet-bg); color: var(--accent-quiet); }
+    .vs-btn.active {
+      background: var(--pico-card-background-color);
+      color: var(--ink); font-weight: 800;
+      box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 3px 8px rgba(0,0,0,.22);
+    }
     .view-switch-wrap { text-align: center; }
 
     /* ── 8. 필터 · 정렬 ───────────────────────────────────────── */
@@ -1048,9 +1075,12 @@
     }
 
     /* 컨트롤을 한 줄로 — 시선이 한 번만 멈추게 */
-    .controls-row { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.9rem; }
-    .controls-row .view-switch { margin: 0; flex: 0 0 auto; }
-    .controls-row .sort-wrap { margin-left: auto; flex: 0 0 auto; }
+    /* 둘 다 flex:0 0 auto 라 아무도 안 줄어들어, 개수 배지를 붙여 스위치가
+       커지자 정렬 드롭다운이 줄 밖으로 삐져나갔다(화면 끝에 딱 붙어 잘려 보임).
+       자리가 모자라면 줄을 넘긴다 — 억지로 한 줄에 우겨넣는 것보다 낫다. */
+    .controls-row { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.9rem; flex-wrap: wrap; }
+    .controls-row .view-switch { margin: 0; flex: 0 1 auto; min-width: 0; }
+    .controls-row .sort-wrap { margin-left: auto; flex: 0 1 auto; min-width: 0; }
     .controls-row select { width: auto; margin: 0; padding: 0.45rem 1.8rem 0.45rem 0.7rem; font-size: 0.84rem; }
 
     /* 작품이 몇 개 안 되면 필터는 선택지가 아니라 소음이다 */
@@ -1158,7 +1188,7 @@
     .hero-cta:active, .dp-empty-btn:active,
     .dlg-actions button[type="submit"]:active { transform: scale(.985); }
 
-    .util-btn, .dp-chip, .hours-quick, .sesschip, .vs-btn,
+    .util-btn, .dp-chip, .hours-quick, .sesschip,
     .dlg-actions button:not([type="submit"]), .safety-btn {
       min-height: 38px; padding: var(--s-2) var(--s-3);
       border-radius: var(--r-full);
@@ -1454,18 +1484,21 @@
     [data-theme="dark"] .dlg-actions button[type="submit"] { border-color: rgba(242,238,226,.3); box-shadow: 3px 3px 0 0 rgba(242,238,226,.18); }
 
     /* 칩 · 보조버튼 — pill + 얇은 아웃라인 */
-    .dp-chip, .util-btn, .hours-quick, .sesschip, .vs-btn,
+    /* 전환 스위치(.vs-btn)는 여기서 뺐다. 칩은 각자 떠 있는 알약이지만
+       전환 스위치는 하나의 트랙 안에 든 칸이라, 칸마다 테두리와 면을 주면
+       어느 쪽이 켜졌는지가 안 보인다(실제로 대비가 1.04:1 까지 내려갔었다). */
+    .dp-chip, .util-btn, .hours-quick, .sesschip,
     .dlg-actions button:not([type="submit"]), .safety-btn {
       background: var(--surface); color: var(--ink);
       border: 2px solid var(--outline); border-radius: 999px;
     }
     [data-theme="dark"] .dp-chip, [data-theme="dark"] .util-btn,
     [data-theme="dark"] .hours-quick, [data-theme="dark"] .sesschip,
-    [data-theme="dark"] .vs-btn, [data-theme="dark"] .dlg-actions button:not([type="submit"]),
+    [data-theme="dark"] .dlg-actions button:not([type="submit"]),
     [data-theme="dark"] .safety-btn { border-color: var(--hair); background: var(--surface); }
     /* 선택된 탭은 '지금 여기'를 알리는 표시다. 누르라는 신호가 아니라서
        CTA 와 같은 핑크를 쓰면 안 된다 — 둘이 같으면 어느 쪽이 행동인지 모른다. */
-    .dp-chip[aria-pressed="true"], .vs-btn.active {
+    .dp-chip[aria-pressed="true"] {
       background: var(--accent-quiet-bg); color: var(--accent-quiet);
       border-color: color-mix(in srgb, var(--accent-quiet) 45%, transparent);
       font-weight: 700;
@@ -2825,6 +2858,14 @@
       body.has-records .hero-cta .cta-plus { font-size: 1.5rem; line-height: 1; }
     }
     .hero-cta { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; }
+    /* 아주 좁으면 스위치가 한 줄을 다 쓰고 두 칸이 반씩 나눠 갖는다.
+       그래야 '두 개 중 하나' 라는 게 모양으로도 읽힌다. */
+    @media (max-width: 400px) {
+      .controls-row .view-switch { width: 100%; }
+      .controls-row .view-switch .vs-btn { flex: 1 1 0; justify-content: center; }
+      .controls-row .sort-wrap { margin-left: 0; width: 100%; }
+      .controls-row select { width: 100%; }
+    }
 </style>
 </head>
 
@@ -2884,8 +2925,10 @@
 
     <div class="controls-row">
       <div class="view-switch" role="tablist" aria-label="보기 전환">
-        <button type="button" class="vs-btn active" role="tab" aria-selected="true" data-view="list">진행중</button>
-        <button type="button" class="vs-btn" role="tab" aria-selected="false" data-view="album">나의 컬렉션</button>
+        <button type="button" class="vs-btn active" role="tab" aria-selected="true" data-view="list">
+          진행중<span class="vs-n" id="vsNList"></span></button>
+        <button type="button" class="vs-btn" role="tab" aria-selected="false" data-view="album">
+          나의 컬렉션<span class="vs-n" id="vsNAlbum"></span></button>
       </div>
       <div class="sort-wrap">
         <select id="sortBy" aria-label="정렬 기준">
@@ -3839,6 +3882,15 @@
     // 메우는 대신, 실제로 쓸모 있는 한 줄을 둔다 — 마지막으로 손댄 게 언제인지.
     // 처음 온 사람에게는 이 앱이 뭔지 알려야 하고, 매일 쓰는 사람에게는
     // 그 말이 방해가 된다. 기록이 하나라도 생기면 접는다.
+    // 개수를 붙인다. 숫자가 있으면 누르기 전에도 저쪽에 뭐가 있는지 알 수 있어
+    // 이 전환이 '장식'이 아니라 '도구'로 읽힌다.
+    function renderViewCounts() {
+      const v = shown();
+      const a = $("vsNList"), b = $("vsNAlbum");
+      if (a) a.textContent = v.filter((i) => i.status !== "done").length || "";
+      if (b) b.textContent = v.filter((i) => i.status === "done").length || "";
+    }
+
     function renderHeroIntro() {
       const has = shown().some((i) => !i.sample);
       for (const id of ["heroTitle", "heroIntro"]) {
@@ -4381,7 +4433,7 @@
     function renderAll() {
       retireExamples(); renderStats(); renderGrid(); animateBars();
       if (view === "album") renderAlbum();
-      renderSafety(); renderHeroIntro(); renderHeroLast(); renderSyncNudge(); renderInApp(); renderInstall(); renderInstallMenu();
+      renderSafety(); renderHeroIntro(); renderViewCounts(); renderHeroLast(); renderSyncNudge(); renderInApp(); renderInstall(); renderInstallMenu();
       hydrateThenRedraw();
     }
 
