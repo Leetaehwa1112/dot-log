@@ -440,7 +440,6 @@
        빈 썸네일에 글자로 "모셔둠"만 얹으면 미완성처럼 보인다.
        실제로 집에 와 있는 상자를 오른쪽 아래 구석에 놓아, 없는 게 아니라
        "여기 와 있고 아직 안 뜯었다"가 보이게 한다. */
-    .svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
     .kit-box {
       position: absolute; right: 0.55rem; bottom: 0.55rem; z-index: 3;
       width: clamp(34px, 20%, 54px); height: auto; pointer-events: none;
@@ -2901,25 +2900,6 @@
 </head>
 
 <body>
-  <!-- 킷 상자에 깔 다이아 라인 타일. 상자 하나마다 복제하지 않으려고 여기 한 번만 둔다.
-       display:none 을 주면 일부 브라우저에서 url(#..) 참조가 끊기므로 크기 0 으로 숨긴다. -->
-  <svg class="svg-defs" aria-hidden="true" focusable="false"><defs>
-    <g id="dpGemTile">
-      <g fill="none" stroke="#d6336c" stroke-width=".5" stroke-linejoin="round" opacity=".92">
-        <path d="M2.3 2h2.8l1.5 1.7-2.9 3-2.9-3Z" />
-        <path d="M.8 3.7h5.8M2.3 2 3.7 6.7M5.1 2 3.7 6.7" />
-      </g>
-    </g>
-    <!-- 같은 타일을 면마다 다른 기울기로 깐다.
-         행렬은 상자 모서리 방향 그대로다 — 윗면은 두 축이 다 눕고,
-         앞·옆면은 가로축만 눕고 세로는 선다. -->
-    <pattern id="dpGemTop" width="7" height="7" patternUnits="userSpaceOnUse"
-             patternTransform="matrix(.95 -.32 .94 .33 0 0)"><use href="#dpGemTile" /></pattern>
-    <pattern id="dpGemFront" width="7" height="7" patternUnits="userSpaceOnUse"
-             patternTransform="matrix(.94 .33 0 1 0 0)"><use href="#dpGemTile" /></pattern>
-    <pattern id="dpGemSide" width="7" height="7" patternUnits="userSpaceOnUse"
-             patternTransform="matrix(.96 -.28 0 1 0 0)"><use href="#dpGemTile" /></pattern>
-  </defs></svg>
 
   <!-- 여는 화면. 앱이 그려질 때까지만 있다가 사라진다.
        스피너 대신 이 앱이 하는 일을 보여준다 — 한 알씩 놓는 것. -->
@@ -4094,10 +4074,26 @@
       const FRONT = "M8 18 28 25 28 54 8 46Z";
       const SIDE = "M28 25 56 17 56 45 28 54Z";
       const SEAM = "M20 14 42 21";                 // 윗면 가운데 접합선
+      // 무늬 정의는 상자 안에 넣는다. 문서 한 곳에 두고 끌어다 쓰면
+      // 사파리에서 다른 svg 의 url(#..) 참조가 끊겨 상자가 통째로 안 그려진다.
+      // id 는 작품마다 달라야 하므로 작품 번호를 붙인다.
+      const u = "kb" + String(item.id || "0").replace(/[^A-Za-z0-9_-]/g, "");
+      // 같은 타일을 면마다 다른 기울기로 깐다. 한 장으로 깔면 세 면에
+      // 똑같이 선 무늬가 얹혀 스티커처럼 보인다. 행렬은 상자 모서리 방향 그대로다 —
+      // 윗면은 두 축이 다 눕고, 앞·옆면은 가로축만 눕고 세로는 선다.
+      const FACES = [["t", ".95 -.32 .94 .33"], ["f", ".94 .33 0 1"], ["s", ".96 -.28 0 1"]];
+      const defs = dac ? `<defs>
+        <g id="${u}g"><g fill="none" stroke="#d6336c" stroke-width=".5" stroke-linejoin="round" opacity=".92">
+          <path d="M2.3 2h2.8l1.5 1.7-2.9 3-2.9-3Z" /><path d="M.8 3.7h5.8M2.3 2 3.7 6.7M5.1 2 3.7 6.7" />
+        </g></g>
+        ${FACES.map(([k, m]) => `<pattern id="${u}${k}" width="7" height="7" patternUnits="userSpaceOnUse"
+                 patternTransform="matrix(${m} 0 0)"><use href="#${u}g" /></pattern>`).join("")}
+      </defs>` : "";
       const body = dac
-        ? `<path d="${SIDE}" fill="#ece2e6" /><path d="${SIDE}" fill="url(#dpGemSide)" opacity=".62" />
-           <path d="${FRONT}" fill="#fdfafb" /><path d="${FRONT}" fill="url(#dpGemFront)" />
-           <path d="${TOP}" fill="#ffffff" /><path d="${TOP}" fill="url(#dpGemTop)" opacity=".5" />
+        ? `${defs}
+           <path d="${SIDE}" fill="#ece2e6" /><path d="${SIDE}" fill="url(#${u}s)" opacity=".62" />
+           <path d="${FRONT}" fill="#fdfafb" /><path d="${FRONT}" fill="url(#${u}f)" />
+           <path d="${TOP}" fill="#ffffff" /><path d="${TOP}" fill="url(#${u}t)" opacity=".5" />
            <path d="${SEAM}" stroke="#d6336c" stroke-width=".9" opacity=".45" />
            <g fill="none" stroke="#d6336c" stroke-width="1.5" stroke-linejoin="round">
              <path d="${SIDE}" /><path d="${FRONT}" /><path d="${TOP}" />
