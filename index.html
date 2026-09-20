@@ -2866,6 +2866,22 @@
       .controls-row .sort-wrap { margin-left: 0; width: 100%; }
       .controls-row select { width: 100%; }
     }
+    /* 완성한 작품으로 건너가는 길. 카드가 아니라 '목록 끝의 안내'로 읽히게. */
+    .done-peek {
+      grid-column: 1 / -1;
+      width: 100%; margin: .3rem 0 0; padding: .9rem 1rem;
+      background: transparent; color: var(--pico-muted-color);
+      border: 1px dashed color-mix(in srgb, var(--pico-muted-border-color) 80%, transparent);
+      border-radius: var(--radius-md);
+      font-size: .88rem; font-weight: 600; cursor: pointer;
+    }
+    .done-peek b { color: var(--gold); font-weight: 800; }
+    .done-peek:hover {
+      color: var(--pico-color);
+      border-color: color-mix(in srgb, var(--gold) 45%, transparent);
+      background: color-mix(in srgb, var(--gold) 7%, transparent);
+    }
+    @media (pointer: coarse) { .done-peek { min-height: 48px !important; } }
 </style>
 </head>
 
@@ -3887,8 +3903,10 @@
     function renderViewCounts() {
       const v = shown();
       const a = $("vsNList"), b = $("vsNAlbum");
+      // 각 탭이 실제로 보여주는 것의 개수여야 한다.
+      // 목록은 아직 붙이는 중인 것, 전시실은 걸려 있는 것 전부.
       if (a) a.textContent = v.filter((i) => i.status !== "done").length || "";
-      if (b) b.textContent = v.filter((i) => i.status === "done").length || "";
+      if (b) b.textContent = v.length || "";
     }
 
     function renderHeroIntro() {
@@ -4027,7 +4045,10 @@
       const filterEl = document.querySelector(".dp-filters");
       if (filterEl) filterEl.hidden = shown().length < 6 && activeFilter === "all";
       let list = shown();
-      if (activeFilter !== "all") list = list.filter((i) => i.status === activeFilter);
+      // '진행중' 이라고 써 놓고 완성한 것까지 보여주면 이름이 거짓말이 된다.
+      // 기본은 아직 붙이는 중인 것만. 완성한 것은 아래 링크나 필터로 간다.
+      if (activeFilter === "all") list = list.filter((i) => i.status !== "done");
+      else list = list.filter((i) => i.status === activeFilter);
       list = sortItems(list);
 
       if (!list.length) {
@@ -4127,6 +4148,19 @@
           </div>
         </article>`;
       }).join("");
+      // 완성한 작품은 목록에서 뺐다. 그렇다고 갈 길이 없으면 안 된다 —
+      // 몇 개가 있는지 알려주고, 누르면 바로 보이게 한다.
+      const doneN = shown().filter((x) => x.status === "done").length;
+      if (activeFilter === "all" && doneN) {
+        gridEl.insertAdjacentHTML("beforeend",
+          `<button type="button" class="done-peek" id="donePeek">완성한 작품 <b>${doneN}개</b> 보기</button>`);
+        $("donePeek").onclick = () => setFilter("done");
+      }
+      if (activeFilter === "done") {
+        gridEl.insertAdjacentHTML("beforeend",
+          `<button type="button" class="done-peek" id="donePeek">← 붙이는 중인 작품으로</button>`);
+        $("donePeek").onclick = () => setFilter("all");
+      }
     }
 
     // 예시는 앱이 빌려준 것이라, 내 기록이 하나라도 생기면 shown() 이 통째로 감춘다.
