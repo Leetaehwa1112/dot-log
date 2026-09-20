@@ -3587,19 +3587,45 @@
     // 카톡으로 링크를 주면 대부분 카톡 안에서 열린다. 그 안은 진짜 브라우저가 아니다 —
     // 저장 공간이 따로 놀아서, 여기서 쓴 기록은 나중에 크롬·사파리로 열면 안 보인다.
     // 앱 설치(홈 화면 추가)도 거기서는 안 된다. 말 안 해주면 "기록이 날아가는 앱"이 된다.
-    const IN_APP = (() => {
-      const u = navigator.userAgent || "";
-      const m = u.match(/KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|BAND\/|DaumApps|everytimeApp|kakaostory/i);
-      if (!m) return null;
-      const name = /KAKAOTALK/i.test(u) ? "카카오톡"
-                 : /NAVER\(inapp/i.test(u) ? "네이버 앱"
-                 : /Instagram/i.test(u) ? "인스타그램"
-                 : /FBAN|FBAV/i.test(u) ? "페이스북"
-                 : /Line\//i.test(u) ? "라인"
-                 : /BAND\//i.test(u) ? "밴드"
-                 : "다른 앱";
-      return { name, android: /Android/i.test(u), kakao: /KAKAOTALK/i.test(u) };
+    /**
+     * 환경에 대해 아는 것을 한 곳에 모은다.
+     *
+     * 기종(갤럭시 S24 인지 아이폰 15 인지)은 일부러 알아내지 않는다.
+     * 브라우저들이 핑거프린팅을 막느라 UA 에서 기종을 지우고 있어 어차피 못 믿고,
+     * 우리가 정말 알아야 하는 건 기종이 아니라 '무엇이 되느냐'다.
+     * 그건 기능 감지와 미디어 쿼리가 훨씬 정확하게 알려준다.
+     *
+     * 그래서 UA 는 기능 감지로 대체할 수 없는 두 가지에만 쓴다:
+     *   inApp  — "지금 카톡 안인가"는 물어볼 API 가 없다
+     *   iosSafari — 설치 안내 문구가 기기마다 달라서, 어디를 누르라고 할지 알아야 한다
+     * 이 밖의 판단은 전부 아래 capability 쪽을 본다.
+     */
+    const ENV = (() => {
+      const ua = navigator.userAgent || "";
+      const IN_APP_RE = /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|BAND\/|DaumApps|everytimeApp|kakaostory/i;
+      const inApp = IN_APP_RE.test(ua) ? {
+        name: /KAKAOTALK/i.test(ua) ? "카카오톡"
+            : /NAVER\(inapp/i.test(ua) ? "네이버 앱"
+            : /Instagram/i.test(ua) ? "인스타그램"
+            : /FBAN|FBAV/i.test(ua) ? "페이스북"
+            : /Line\//i.test(ua) ? "라인"
+            : /BAND\//i.test(ua) ? "밴드"
+            : "다른 앱",
+        android: /Android/i.test(ua),
+        kakao: /KAKAOTALK/i.test(ua),
+      } : null;
+      const iosSafari = /iPhone|iPad|iPod/.test(ua) && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+      return {
+        ua, inApp, iosSafari,
+        // 여기부터는 UA 와 무관하게 '되는지 안 되는지'를 직접 물어본 값들
+        standalone: () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true,
+        touch: matchMedia("(pointer: coarse)").matches,
+        sw: "serviceWorker" in navigator,
+        idb: "indexedDB" in window,
+        dvh: CSS.supports("height", "100dvh"),
+      };
     })();
+    const IN_APP = ENV.inApp;
 
     function renderInApp() {
       if (!IN_APP) return;
@@ -3642,15 +3668,62 @@
     // 메뉴를 뒤져 '홈 화면에 추가'를 찾아내라고 하면 대부분 안 한다.
     // 크롬은 beforeinstallprompt 를 주므로 버튼 한 번으로 끝나고,
     // iOS 사파리는 그런 게 없어서 어디를 누르는지 그림처럼 짚어준다.
+    // ── 문제가 생겼을 때 건네줄 한 장 ──────────────────────────────
+    // 몰래 서버로 쏘지 않는다. 로그인도 계정도 없는 앱에서 동의 없이 보내는 건
+    // 이 앱이 지키기로 한 선을 넘는다. 대신 사용자가 눌러서 복사하고,
+    // 카톡으로 붙여 넣게 한다. 무엇이 나가는지 본인이 보고 보낸다.
+    const errLog = [];      // 최근 오류 몇 개만 (메모리에만, 어디로도 안 나간다)
+    const noteErr = (what, e) => {
+      const msg = (e && (e.message || e.reason?.message || e.reason)) || e;
+      errLog.unshift(`${new Date().toLocaleTimeString("ko-KR")} ${what}: ${String(msg).slice(0, 140)}`);
+      errLog.length = Math.min(errLog.length, 3);
+    };
+    window.addEventListener("error", (e) => noteErr("오류", e.error || e.message));
+    window.addEventListener("unhandledrejection", (e) => noteErr("처리안된거절", e));
+
+    async function diagnosticText() {
+      const mine = items.filter((i) => !i.sample);
+      const k = syncKey();
+      // 키는 곧 열쇠다. 카톡에 붙여 넣을 글이라 앞 4자만 남긴다.
+      const maskedKey = k ? `${k.slice(0, 4)}${"*".repeat(Math.max(0, k.length - 4))} (${k.length}자)` : "없음";
+      let persisted = "확인불가";
+      try { persisted = String(await navigator.storage.persisted()); } catch {}
+      const u = syncUsage();
+      const at = +localStorage.getItem(SYNC_AT_K) || 0;
+      const regs = ENV.sw ? (await navigator.serviceWorker.getRegistrations().catch(() => [])) : [];
+
+      return [
+        "[DOT-LOG 진단]",
+        `시각: ${new Date().toLocaleString("ko-KR")}`,
+        "",
+        "[환경]",
+        `인앱: ${ENV.inApp ? ENV.inApp.name : "아니오"} / 앱으로 설치됨: ${ENV.standalone() ? "예" : "아니오"}`,
+        `터치기기: ${ENV.touch} / dvh: ${ENV.dvh} / 서비스워커: ${regs.length ? regs[0].active?.state || "등록됨" : "없음"}`,
+        `화면: ${innerWidth}×${innerHeight} (DPR ${devicePixelRatio})`,
+        `UA: ${ENV.ua.slice(0, 160)}`,
+        "",
+        "[저장]",
+        `기기 저장량: ${mb(storageBytes())} / ${mb(LS_LIMIT)} · 영구보존승인: ${persisted}`,
+        `작품 ${mine.length}개 (완성 ${mine.filter((i) => i.status === "done").length}개, 사진 있는 것 ${mine.filter((i) => i.photo).length}개)`,
+        `묘비 ${Object.keys(readTomb()).length}개`,
+        "",
+        "[동기화]",
+        `키: ${maskedKey}`,
+        `서버: ${syncUrl()}`,
+        `클라우드 사용량: ${mb(u.used)} / ${mb(SYNC_CAP)} (${u.pct}%)`,
+        `마지막 성공: ${at ? new Date(at).toLocaleString("ko-KR") : "없음"} · 연속실패: ${syncFails}회${syncLastErr ? ` (${syncLastErr})` : ""}`,
+        `시계 오차: ${clockSkew}ms`,
+        "",
+        "[최근 오류]",
+        errLog.length ? errLog.join("\n") : "없음",
+      ].join("\n");
+    }
+
     const INSTALL_K = "dp-install-off";
     let deferredPrompt = null;
 
-    const isStandalone = () =>
-      window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-    const isIOSSafari = () => {
-      const u = navigator.userAgent || "";
-      return /iPhone|iPad|iPod/.test(u) && /Safari/.test(u) && !/CriOS|FxiOS|EdgiOS/.test(u);
-    };
+    const isStandalone = () => ENV.standalone();
+    const isIOSSafari = () => ENV.iosSafari;
 
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();          // 크롬 기본 배너 대신 우리 자리에서 권한다
@@ -5012,6 +5085,14 @@
             <small class="fld-hint">이 키를 아는 사람은 기록을 볼 수 있어요.</small>
             <button type="button" id="s_save" class="secondary" style="margin-top:.6rem">저장</button>
             <hr style="margin:1rem 0;opacity:.25" />
+            <label class="fld-label">문제가 생겼을 때</label>
+            <small class="fld-hint">
+              지금 상태를 글로 복사합니다. 붙여넣어 알려주시면 원인을 찾기 쉬워요.
+              <b>동기화 키는 앞 4자리만</b> 들어가고, 기록 내용은 들어가지 않습니다.
+            </small>
+            <button type="button" id="s_diag" class="secondary" style="margin-top:.6rem">진단 정보 복사</button>
+
+            <hr style="margin:1rem 0;opacity:.25" />
             <label class="fld-label">서버에서 지우기</label>
             <small class="fld-hint">
               이 보관함의 기록을 서버에서 지웁니다. <b>이 기기의 기록은 그대로 남습니다.</b>
@@ -5036,6 +5117,12 @@
         localStorage.setItem(SYNC_KEY_K, $("s_key").value.trim() || newSyncKey());
         renderSyncPanel(); showToast("저장했어요");
       };
+      $("s_diag").onclick = async () => {
+        const t = await diagnosticText();
+        try { await navigator.clipboard.writeText(t); showToast("복사했어요 · 붙여넣어 보내주세요"); }
+        catch { prompt("아래를 복사해서 보내주세요", t); }
+      };
+
       $("s_wipe").onclick = async () => {
         if (!syncKey()) { showToast("연결된 보관함이 없어요"); return; }
         if (!confirm("서버에 있는 기록을 지웁니다.\n\n이 기기의 기록은 그대로 남지만, 다른 기기에서 받아갈 것은 없어집니다.\n되돌릴 수 없어요. 지울까요?")) return;
