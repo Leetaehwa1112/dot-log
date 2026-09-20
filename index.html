@@ -2394,6 +2394,30 @@
       white-space: nowrap;
     }
 
+    /* 모셔둔 킷 — 방 오른쪽 구석에 상자째 쌓아 둔다.
+       기대 세운 캔버스와 같은 바닥선(26px)에서 시작해 위로 포갠다. */
+    .kit3 {
+      position: absolute; bottom: calc(26px * var(--fit) + var(--lift));
+      width: var(--w); margin: 0; pointer-events: auto; cursor: pointer;
+      transform-origin: bottom center;
+      transform: translateX(-50%) translateZ(calc(40px * var(--fit))) rotate(var(--tilt));
+    }
+    .kit3 > svg { position: static; width: 100%; height: auto; filter: drop-shadow(0 3px 7px rgba(0,0,0,.34)); }
+    /* 바닥에 닿은 자리의 그림자. 포개진 상자는 바닥이 아니라 아래 상자에 얹혀 있으니 뺀다. */
+    .kit3::after {
+      content: ""; position: absolute; left: 4%; right: 4%; bottom: 4px; height: 11px;
+      background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.5), transparent 72%);
+      filter: blur(4px); pointer-events: none;
+    }
+    .kit3.stacked::after { display: none; }
+    .kit3-tag {
+      position: absolute; bottom: calc(26px * var(--fit) + var(--lift)); transform: translateX(-50%);
+      z-index: 2; pointer-events: none;
+      font-size: 10px; font-weight: 800; letter-spacing: .02em;
+      color: #fff; background: rgba(12,8,20,.66); border-radius: 999px; padding: 2px 7px;
+      white-space: nowrap;
+    }
+
     /* ── 조작 막대 ────────────────────────────────────────────────── */
     .r3-hint {
       position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
@@ -2405,7 +2429,8 @@
     }
     .r3.moved .r3-hint { opacity: 0; }
 
-    .r3-zoom { position: absolute; right: 10px; bottom: 10px; z-index: 4; display: flex; gap: 6px; }
+    /* 오른쪽 바닥은 모셔둔 킷 더미 자리다. 카메라 조작은 위로 올린다. */
+    .r3-zoom { position: absolute; right: 10px; top: 10px; z-index: 4; display: flex; gap: 6px; }
     .r3-zoom button {
       width: 34px; height: 34px; padding: 0; margin: 0; border: 0; border-radius: 10px;
       background: rgba(12,8,20,.5); color: #fff; font-size: 16px; font-weight: 700; line-height: 1;
@@ -4661,14 +4686,40 @@
         </figure>`;
       });
 
-      // 붙이는 중인 건 바닥에 기대 세워둔다 — 방에 사람이 사는 티가 난다
-      const leaning = wipList.slice(0, 3).map((i, k) => {
+      // 붙이는 중인 건 바닥에 기대 세워둔다 — 방에 사람이 사는 티가 난다.
+      // 모셔둔 건 기대 세우지 않는다. 아직 뜯지도 않았으니 캔버스가 나와 있을 리 없다.
+      const progList  = wipList.filter((i) => i.status !== "planned");
+      const stashList = wipList.filter((i) => i.status === "planned");
+
+      const leaning = progList.slice(0, 3).map((i, k) => {
         const n = artNode(i, k);
         const x = 16 + k * 24;
         return `<figure class="lean3" data-dex="${i.id}" style="--w:${Math.round(n.w * 0.78)}px;left:${x}%">
-          ${n.html}<span class="lean-tag">${i.status === "planned" ? "모셔둠" : pct(i) + "%"}</span>
+          ${n.html}<span class="lean-tag">${pct(i)}%</span>
         </figure>`;
       }).join("");
+
+      // 모셔둔 킷은 오른쪽 구석에 상자째 쌓아 둔다.
+      // 세 개까지 위로 쌓고, 넘치면 그 왼쪽에 한 줄 더 만든다.
+      const KIT_CM = 34, PER_COL = 3;
+      const kitPx = Math.max(26, Math.round(KIT_CM * CM * ROOM_FIT));
+      const stash = stashList.slice(0, 9).map((i, k) => {
+        const col = Math.floor(k / PER_COL), row = k % PER_COL;
+        const x = 76 - col * 9.5;
+        const lift = Math.round(row * kitPx * 0.52);
+        const tilt = (k % 2 ? 1 : -1) * (1.4 + row * 0.5);
+        return `<figure class="kit3${row ? " stacked" : ""}" data-dex="${i.id}"
+            title="${escapeHtml(i.name)} · 모셔둠"
+            style="--w:${kitPx}px;left:${x}%;--lift:${lift}px;--tilt:${tilt}deg">
+          ${kitBox(i)}
+        </figure>`;
+      }).join("");
+      // 꼬리표는 맨 오른쪽 더미 위에 올린다 — 더미에 가리지 않게 쌓인 높이만큼 띄운다.
+      const topRow = Math.min(stashList.length, PER_COL);
+      const stashTag = stashList.length
+        ? `<span class="kit3-tag" style="left:76%;--lift:${Math.round((topRow - 1) * kitPx * 0.52 + kitPx * 0.82)}px"
+                 >모셔둔 킷 ${stashList.length}</span>`
+        : "";
 
       const [wa, wb, sk] = WALL_PALETTES[cfg.wall] || WALL_PALETTES.cream;
       const [fa, fb] = FLOOR_PALETTES[cfg.floor] || FLOOR_PALETTES.oak;
@@ -4702,7 +4753,7 @@
                 <div class="r3-surf r3-floor"></div>
                 <div class="r3-surf r3-wall r3-left">${wallArt.left}</div>
                 <div class="r3-surf r3-wall r3-right">${wallArt.right}</div>
-                <div class="r3-surf r3-wall r3-back">${wallArt.back}${leaning}</div>
+                <div class="r3-surf r3-wall r3-back">${wallArt.back}${leaning}${stash}${stashTag}</div>
               </div>
               <span class="r3-hint">끌어서 둘러보세요 · 작품을 누르면 자리를 옮겨요</span>
               <div class="r3-zoom">
@@ -4760,7 +4811,7 @@
       r.addEventListener("pointerdown", (e) => {
         if (e.isPrimary === false) return;
         drag = { x: e.clientX, y: e.clientY, yaw: camYaw, pitch: camPitch,
-                 hit: e.target.closest(".art3, .lean3") };
+                 hit: e.target.closest(".art3, .lean3, .kit3") };
         moved = 0; r.classList.add("dragging");
         r.setPointerCapture(e.pointerId);
       });
