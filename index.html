@@ -3247,6 +3247,68 @@
     .hero-cta:hover, .dp-empty-btn:hover {
       background: color-mix(in srgb, var(--brand) 86%, #000) !important;
     }
+    /* ═══ 컬렉션 = 전시실 ══════════════════════════════════════════════
+       방 자체가 이 화면의 그림이다. 그 위에 큰 분홍 제목이 얹히면
+       방보다 제목이 먼저 보인다. 제목을 라벨로 낮추고 방을 키운다.
+       ════════════════════════════════════════════════════════════════ */
+    .dex-head { text-align: left; margin-bottom: 14px; }
+    .dex-head h2 {
+      font-family: var(--font-ui) !important; color: var(--pico-muted-color) !important;
+      font-size: .655rem !important; font-weight: 520 !important; letter-spacing: .13em !important;
+      margin: 0 0 9px !important;
+    }
+    .dex-head .dex-sub {
+      font-size: .98rem !important; font-weight: 700; letter-spacing: -.012em;
+      color: var(--pico-color) !important; margin: 0 0 7px !important;
+    }
+    .dex-head .dex-sub b { color: inherit !important; }
+    .dex-head .dex-counts {
+      font-size: .655rem !important; font-weight: 520 !important; letter-spacing: .06em !important;
+      color: var(--pico-muted-color) !important;
+    }
+
+    /* 방 — 둥근 모서리와 그림자를 걷는다. 액자처럼 각지게 세운다 */
+    .r3 { border-radius: 2px !important; box-shadow: 0 0 0 1px var(--hair) !important; }
+    .r3-wrap { margin-top: 0; }
+
+    /* 조작기는 작게. 방 안의 물건보다 크면 안 된다 */
+    .r3-zoom { gap: 2px; }
+    .r3-zoom button {
+      width: 26px; height: 26px; border-radius: 2px; font-size: 13px; font-weight: 520;
+      background: color-mix(in srgb, var(--paper) 78%, transparent);
+      color: var(--pico-color); border: 1px solid var(--hair);
+      backdrop-filter: blur(6px);
+    }
+    /* 안내는 방 안에 떠 있는 알약이 아니라 방 밑에 붙는 캡션이다 */
+    .r3-hint {
+      position: static; transform: none; display: block; margin: 9px 0 0;
+      background: none; color: var(--pico-muted-color); padding: 0;
+      font-size: .655rem; font-weight: 520; letter-spacing: .06em;
+    }
+
+    /* 집꾸미기 — 굵은 분홍 테두리를 얇은 잉크 한 줄로 */
+    .deco { margin-top: 20px; gap: 11px; }
+    .deco-row > b {
+      font-size: .655rem !important; font-weight: 520 !important; letter-spacing: .13em !important;
+      min-width: 2.2rem;
+    }
+    .swatch {
+      width: 22px; height: 22px; border-radius: 2px; border: 0;
+      box-shadow: 0 0 0 1px var(--hair);
+    }
+    .swatch.on { border: 0; box-shadow: 0 0 0 1px var(--pico-color), inset 0 0 0 2px var(--paper); }
+    .deco-chip {
+      background: none !important; border: 0 !important; border-radius: 0 !important;
+      padding: 2px 0 4px !important; margin: 0; font-size: .655rem !important;
+      font-weight: 520 !important; letter-spacing: .06em !important;
+      color: var(--pico-muted-color) !important;
+      border-bottom: 1.5px solid transparent !important;
+    }
+    .deco-chip.on {
+      color: var(--pico-color) !important; font-weight: 700 !important;
+      border-bottom-color: var(--pico-color) !important;
+    }
+    .deco-row { gap: 14px; }
 </style>
 </head>
 
@@ -5132,12 +5194,12 @@
                 <div class="r3-surf r3-wall r3-right">${wallArt.right}</div>
                 <div class="r3-surf r3-wall r3-back">${wallArt.back}${leaning}${stash}${stashTag}</div>
               </div>
-              <span class="r3-hint">끌어서 둘러보세요 · 작품을 누르면 자리를 옮겨요</span>
               <div class="r3-zoom">
                 <button type="button" data-zoom="-1" aria-label="뒤로">−</button>
                 <button type="button" data-zoom="1" aria-label="앞으로">＋</button>
               </div>
             </div>
+            <p class="r3-hint">끌어서 둘러보세요 · 작품을 누르면 자리를 옮겨요</p>
 
             ${doneN ? "" : `<p class="wall-empty">아직 걸린 작품이 없어요. 첫 작품을 완성하면 이 벽에 걸립니다.</p>`}
 
