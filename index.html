@@ -4367,7 +4367,7 @@
     // 키를 아는 사람은 기록을 볼 수 있으므로, 키는 앱이 길게 만들어 준다.
     const SYNC_URL_K = "dp-sync-url", SYNC_KEY_K = "dp-sync-key";
     const SYNC_AT_K = "dp-sync-at", TOMB_K = "dp-tomb";
-    const SYNC_URL_DEFAULT = "";     // 배포 후 여기에 서버 주소가 들어간다
+    const SYNC_URL_DEFAULT = "https://dotlog-sync.thl123563.workers.dev";
 
     const syncUrl = () => (localStorage.getItem(SYNC_URL_K) || SYNC_URL_DEFAULT).replace(/\/$/, "");
     const syncKey = () => localStorage.getItem(SYNC_KEY_K) || "";
