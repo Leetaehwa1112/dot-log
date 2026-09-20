@@ -4099,6 +4099,10 @@
       const FRONT = "M8 18 28 25 28 54 8 46Z";
       const SIDE = "M28 25 56 17 56 45 28 54Z";
       const SEAM = "M20 14 42 21";                 // 윗면 가운데 접합선
+      // 면마다 안쪽으로 한 줄 더 들어간 테두리 — 각 면을 무게중심 기준 0.86 으로 줄인 것
+      const TOP_IN = "M11.2 17.9 31.9 11.1 52.5 17.1 28.4 24Z";
+      const FRONT_IN = "M9.4 20.5 26.6 26.5 26.6 51.4 9.4 44.6Z";
+      const SIDE_IN = "M30 26.4 54 19.6 54 43.6 30 51.4Z";
       // 무늬 정의는 상자 안에 넣는다. 문서 한 곳에 두고 끌어다 쓰면
       // 사파리에서 다른 svg 의 url(#..) 참조가 끊겨 상자가 통째로 안 그려진다.
       // id 는 작품마다 달라야 하므로 작품 번호를 붙인다.
@@ -4107,11 +4111,15 @@
       // 똑같이 선 무늬가 얹혀 스티커처럼 보인다. 행렬은 상자 모서리 방향 그대로다 —
       // 윗면은 두 축이 다 눕고, 앞·옆면은 가로축만 눕고 세로는 선다.
       const FACES = [["t", ".95 -.32 .94 .33"], ["f", ".94 .33 0 1"], ["s", ".96 -.28 0 1"]];
+      // 다이아는 정면에서 본 브릴리언트컷 선화다 — 테이블(윗면 평평한 곳), 거들선,
+      // 크라운 컷팅면 둘, 파빌리온 컷팅면 둘. 실물 인쇄가 딱 이 모양이고,
+      // 이 선들이 없으면 그냥 마름모라 무늬로만 보인다.
       const defs = dac ? `<defs>
-        <g id="${u}g"><g fill="none" stroke="#d6336c" stroke-width=".5" stroke-linejoin="round" opacity=".92">
-          <path d="M2.3 2h2.8l1.5 1.7-2.9 3-2.9-3Z" /><path d="M.8 3.7h5.8M2.3 2 3.7 6.7M5.1 2 3.7 6.7" />
+        <g id="${u}g"><g fill="none" stroke="#d6336c" stroke-width=".46" stroke-linejoin="round" opacity=".95">
+          <path d="M2.6 1.9h3.8l1.9 2.3-3.8 4.2L.7 4.2Z" />
+          <path d="M.7 4.2h7.6M2.6 1.9 3.6 4.2M6.4 1.9 5.4 4.2M3.6 4.2 4.5 8.4M5.4 4.2 4.5 8.4" />
         </g></g>
-        ${FACES.map(([k, m]) => `<pattern id="${u}${k}" width="7" height="7" patternUnits="userSpaceOnUse"
+        ${FACES.map(([k, m]) => `<pattern id="${u}${k}" width="9" height="9" patternUnits="userSpaceOnUse"
                  patternTransform="matrix(${m} 0 0)"><use href="#${u}g" /></pattern>`).join("")}
       </defs>` : "";
       const body = dac
@@ -4120,6 +4128,9 @@
            <path d="${FRONT}" fill="#fdfafb" /><path d="${FRONT}" fill="url(#${u}f)" />
            <path d="${TOP}" fill="#ffffff" /><path d="${TOP}" fill="url(#${u}t)" opacity=".5" />
            <path d="${SEAM}" stroke="#d6336c" stroke-width=".9" opacity=".45" />
+           <g fill="none" stroke="#d6336c" stroke-width=".7" opacity=".8" stroke-linejoin="round">
+             <path d="${SIDE_IN}" /><path d="${FRONT_IN}" /><path d="${TOP_IN}" />
+           </g>
            <g fill="none" stroke="#d6336c" stroke-width="1.5" stroke-linejoin="round">
              <path d="${SIDE}" /><path d="${FRONT}" /><path d="${TOP}" />
            </g>`
