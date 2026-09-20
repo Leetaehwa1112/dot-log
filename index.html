@@ -2,7 +2,7 @@
 <html lang="ko" data-theme="dark">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>DOT-LOG · 다이아몬드 페인팅 노트</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="theme-color" content="#140d20" />
@@ -2293,6 +2293,63 @@
     }
     /* 완성 카드의 뱃지가 그림을 가리지 않게 살짝 물러난다 */
     .dp-card.is-done .dp-badge { opacity: .92; }
+
+    /* ═══ 모바일 마감 — 갤럭시·아이폰 공통 ═══════════════════════════
+       실측으로 잡은 것만 고친다:
+         · 안전영역(노치·홈바)  · iOS 입력칸 자동확대  · 44px 미만 터치 표적
+         · 100vh 가 주소창 때문에 틀리는 문제  · 가로 회전 시 글자 부풀기
+       ════════════════════════════════════════════════════════════════ */
+
+    html {
+      /* 아이폰을 가로로 돌리면 사파리가 본문 글자를 제멋대로 키운다 */
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    body {
+      /* 끝에서 더 당길 때 페이지가 튕기거나 새로고침되지 않게 */
+      overscroll-behavior-y: contain;
+      /* 노치 있는 기기를 가로로 돌리면 좌우가 잘린다 */
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+    }
+    /* 탭할 때 번쩍이는 회색 사각형(안드로이드 크롬 기본값) + 더블탭 확대 대기 제거 */
+    a, button, summary, [role="button"], .ccell {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    /* 상태바 밑으로 파고드는 상단바 — 배경은 끝까지, 내용은 안전영역 아래로 */
+    .dp-topbar { padding-top: env(safe-area-inset-top, 0px); height: auto; min-height: 64px; }
+    /* 홈 인디케이터에 깔리는 하단 버튼 */
+    .hero-cta { padding-bottom: calc(0.95rem + env(safe-area-inset-bottom, 0px)); }
+
+    /* 주소창이 접혔다 펴지면 100vh 는 틀린 값이 된다. dvh 는 그때그때 맞는다. */
+    @supports (height: 100dvh) {
+      .r3 { height: 56dvh; }
+      dialog article { max-height: 88dvh; }
+    }
+
+    @media (pointer: coarse) {
+      /* iOS 는 16px 미만 입력칸에 초점이 가면 화면을 통째로 확대하고 그대로 둔다.
+         확대를 막는 대신 원인을 없앤다. */
+      input, select, textarea, button { font-size: max(16px, 1em); }
+
+      /* 손가락 표적: 애플 44pt · 머티리얼 48dp → 44 를 최소선으로.
+         진행 격자(.ccell)는 그림 위의 좌표라서 키우면 뜻이 깨진다 — 손대지 않는다. */
+      .vs-btn, .more-panel button, .ghost, .fold-btn, .now-btn,
+      #sortBy, select, .link-btn, .deco-chip { min-height: 44px; }
+      .dp-utils summary { min-width: 44px; min-height: 44px; }
+      .swatch { width: 44px; height: 44px; }
+      .sess-del { min-width: 44px; min-height: 44px; }
+      .card-actions { flex-wrap: wrap; }
+    }
+
+    /* 320px(구형 SE·폴드 접힘)에서도 넘치지 않게 */
+    @media (max-width: 340px) {
+      :root { --gut: 12px; }
+      .dp-stat .num { font-size: 1rem; }
+      .deco-row > b { min-width: auto; }
+    }
 </style>
 </head>
 
