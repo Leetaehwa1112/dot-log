@@ -4,6 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DOT-LOG · 다이아몬드 페인팅 노트</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#140d20" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="DOT-LOG" />
 
   <!-- Pico CSS (violet theme) — Context7 문서 기반 CDN 셋업 -->
   <link
@@ -2387,7 +2392,6 @@
       </header>
       <div id="syncBody"></div>
       <div class="dlg-actions">
-        <button type="button" id="syncSaveBtn" class="secondary">저장</button>
         <button type="button" id="syncRunBtn">지금 동기화</button>
       </div>
     </article>
@@ -4435,17 +4439,53 @@
       } finally { syncing = false; }
     }
 
+    const SITE_URL = "https://leetaehwa1112.github.io/dot-log/";
+    function joinLink() { return `${SITE_URL}?sync=${encodeURIComponent(syncKey())}`; }
+
     function renderSyncPanel() {
       const el = $("syncBody"); if (!el) return;
       const at = +localStorage.getItem(SYNC_AT_K) || 0;
       el.innerHTML = `
-        <label class="fld-label" for="s_url">동기화 서버 주소</label>
-        <input type="url" id="s_url" placeholder="https://..." value="${escapeHtml(syncUrl())}" />
-        <label class="fld-label" for="s_key" style="margin-top:.6rem">동기화 키</label>
-        <input type="text" id="s_key" placeholder="비어 있으면 새로 만듭니다" value="${escapeHtml(syncKey())}" />
-        <small class="fld-hint">다른 기기에서도 <b>같은 주소와 같은 키</b>를 넣으면 기록이 합쳐져요.
-          키를 아는 사람은 기록을 볼 수 있으니 아무에게나 알려주지 마세요.</small>
-        <p class="fld-hint" style="margin-top:.6rem">${at ? `마지막 동기화 ${new Date(at).toLocaleString("ko-KR")}` : "아직 동기화한 적 없어요"}</p>`;
+        <p style="margin:0 0 .9rem;font-size:.92rem;line-height:1.5">
+          다른 기기에서도 같은 기록을 보려면 <b>연결 링크를 자기 자신에게 보내고</b>,
+          그 기기에서 열기만 하면 됩니다. 옮겨 적을 것은 없어요.
+        </p>
+        <div class="nudge" style="display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" id="s_share">연결 링크 보내기</button>
+          <button type="button" id="s_copy" class="secondary">링크 복사</button>
+        </div>
+        <p class="fld-hint" style="margin-top:.7rem">
+          ${at ? `마지막 동기화 ${new Date(at).toLocaleString("ko-KR")}` : "아직 동기화한 적 없어요"}
+        </p>
+        <details class="sec" style="margin-top:.9rem">
+          <summary>직접 설정 <small>보통은 건드릴 일 없어요</small></summary>
+          <div class="sec-body">
+            <label class="fld-label" for="s_url">서버 주소</label>
+            <input type="url" id="s_url" value="${escapeHtml(syncUrl())}" />
+            <label class="fld-label" for="s_key" style="margin-top:.6rem">동기화 키</label>
+            <input type="text" id="s_key" value="${escapeHtml(syncKey())}" />
+            <small class="fld-hint">이 키를 아는 사람은 기록을 볼 수 있어요.</small>
+            <button type="button" id="s_save" class="secondary" style="margin-top:.6rem">저장</button>
+          </div>
+        </details>`;
+
+      const link = joinLink();
+      $("s_share").onclick = async () => {
+        if (navigator.share) {
+          try { await navigator.share({ title: "DOT-LOG 연결", url: link }); return; } catch {}
+        }
+        copyLink();
+      };
+      $("s_copy").onclick = copyLink;
+      $("s_save").onclick = () => {
+        localStorage.setItem(SYNC_URL_K, $("s_url").value.trim());
+        localStorage.setItem(SYNC_KEY_K, $("s_key").value.trim() || newSyncKey());
+        renderSyncPanel(); showToast("저장했어요");
+      };
+      async function copyLink() {
+        try { await navigator.clipboard.writeText(link); showToast("링크를 복사했어요"); }
+        catch { prompt("이 링크를 다른 기기에서 여세요", link); }
+      }
     }
 
     // ---------- 테마: 자동(해 기준) / 밝게 / 어둡게 ----------
@@ -4529,24 +4569,33 @@
     $("btnSync").addEventListener("click", () => {
       $("moreMenu").open = false;
       if (!syncKey()) localStorage.setItem(SYNC_KEY_K, newSyncKey());   // 처음이면 키를 만들어 준다
+      if (!localStorage.getItem(SYNC_URL_K)) localStorage.setItem(SYNC_URL_K, SYNC_URL_DEFAULT);
       renderSyncPanel();
       $("syncDlg").showModal();
     });
     $("syncClose").addEventListener("click", () => $("syncDlg").close());
-    $("syncSaveBtn").addEventListener("click", () => {
-      const u = $("s_url").value.trim(), k = $("s_key").value.trim();
-      localStorage.setItem(SYNC_URL_K, u);
-      localStorage.setItem(SYNC_KEY_K, k || newSyncKey());
-      renderSyncPanel();
-      showToast(syncOn() ? "저장했어요" : "주소와 키가 둘 다 있어야 동기화돼요");
-    });
-    $("syncRunBtn").addEventListener("click", () => {
-      $("syncSaveBtn").click();
-      syncNow(true);
-    });
+    $("syncRunBtn").addEventListener("click", () => syncNow(true));
 
     // 앱을 열 때 한 번 맞춰본다
     if (syncOn()) setTimeout(() => syncNow(false), 800);
+
+    // 설치한 뒤 인터넷 없이도 뜨게. file:// 로 연 경우엔 등록이 안 되므로 조용히 넘어간다.
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    }
+
+    // 링크로 연결: ?sync=키 로 들어오면 그 키를 쓰고 주소창에서 지운다.
+    // 키를 사람이 옮겨 적게 하지 않는 게 요점이다 — 링크만 자기 자신에게 보내면 끝난다.
+    (function joinByLink() {
+      const q = new URLSearchParams(location.search);
+      const k = q.get("sync");
+      if (!k || !/^[A-Za-z0-9_-]{16,96}$/.test(k)) return;
+      localStorage.setItem(SYNC_KEY_K, k);
+      if (!localStorage.getItem(SYNC_URL_K)) localStorage.setItem(SYNC_URL_K, SYNC_URL_DEFAULT);
+      q.delete("sync");
+      history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
+      setTimeout(() => { syncNow(true); }, 500);
+    })();
 
     const MODE_CYCLE = { auto: "light", light: "dark", dark: "auto" };
     $("btnTheme").addEventListener("click", () => applyTheme(MODE_CYCLE[themeMode()]));
