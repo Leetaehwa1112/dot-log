@@ -2307,6 +2307,7 @@
           <summary aria-label="더 보기"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></summary>
           <div class="more-panel">
             <button id="btnTheme" type="button">테마 전환</button>
+            <button id="btnSync" type="button">다른 기기와 동기화</button>
             <button id="btnExport" type="button">백업 내려받기</button>
             <button id="btnImport" type="button">백업 불러오기</button>
           </div>
@@ -2375,6 +2376,20 @@
         <button type="button" id="camCancel" class="outline">취소</button>
       </div>
       <small id="camMsg"></small>
+    </article>
+  </dialog>
+
+  <dialog id="syncDlg">
+    <article>
+      <header>
+        <button aria-label="닫기" rel="prev" id="syncClose"></button>
+        <strong>다른 기기와 동기화</strong>
+      </header>
+      <div id="syncBody"></div>
+      <div class="dlg-actions">
+        <button type="button" id="syncSaveBtn" class="secondary">저장</button>
+        <button type="button" id="syncRunBtn">지금 동기화</button>
+      </div>
     </article>
   </dialog>
 
@@ -2703,6 +2718,7 @@
         lastSaveOk = true;
         autoSnapshot(raw);          // 직전 상태를 한 벌 더 남긴다 (사용자 개입 없음)
         writeToFile(raw);           // 연결된 파일이 있으면 거기에도 (실패해도 본 저장엔 영향 없음)
+        syncSoon();                 // 다른 기기에도 (키를 등록했을 때만)
         return true;
       } catch (e) {
         lastSaveOk = false;
@@ -4116,6 +4132,7 @@
       if (t.dataset.del) {
         const it = items.find((i) => i.id === t.dataset.del);
         if (it && confirm(`"${it.name}" 기록을 삭제할까요?`)) {
+          tombstone(t.dataset.del);          // 다른 기기에서도 지워지도록 표시를 남긴다
           items = items.filter((i) => i.id !== t.dataset.del); save(); renderAll();
         }
       }
@@ -4345,6 +4362,92 @@
       fillFromCatalog(acCurrent[+li.dataset.i]);
     });
 
+    // ---------- 다른 기기와 동기화 ----------
+    // 계정을 만들지 않는다. 긴 '동기화 키' 하나가 주소이자 열쇠다.
+    // 키를 아는 사람은 기록을 볼 수 있으므로, 키는 앱이 길게 만들어 준다.
+    const SYNC_URL_K = "dp-sync-url", SYNC_KEY_K = "dp-sync-key";
+    const SYNC_AT_K = "dp-sync-at", TOMB_K = "dp-tomb";
+    const SYNC_URL_DEFAULT = "";     // 배포 후 여기에 서버 주소가 들어간다
+
+    const syncUrl = () => (localStorage.getItem(SYNC_URL_K) || SYNC_URL_DEFAULT).replace(/\/$/, "");
+    const syncKey = () => localStorage.getItem(SYNC_KEY_K) || "";
+    const syncOn = () => !!(syncUrl() && syncKey());
+
+    function newSyncKey() {
+      const a = new Uint8Array(18); crypto.getRandomValues(a);
+      return [...a].map((b) => b.toString(36).padStart(2, "0")).join("").slice(0, 32);
+    }
+    function readTomb() { try { return JSON.parse(localStorage.getItem(TOMB_K)) || {}; } catch { return {}; } }
+    function tombstone(id) {
+      const t = readTomb(); t[id] = Date.now();
+      try { localStorage.setItem(TOMB_K, JSON.stringify(t)); } catch {}
+    }
+
+    /** 항목별로 더 최근 것을 남긴다. 서버와 같은 규칙이라 어느 쪽이 먼저 올려도 결과가 같다. */
+    function mergeItems(mine, theirs, tomb) {
+      const byId = new Map();
+      for (const it of [...theirs, ...mine]) {
+        if (!it || !it.id) continue;
+        const prev = byId.get(it.id);
+        if (!prev || (it.updatedAt || 0) > (prev.updatedAt || 0)) byId.set(it.id, it);
+      }
+      for (const [id, ts] of Object.entries(tomb || {})) {
+        const it = byId.get(id);
+        if (it && (it.updatedAt || 0) <= ts) byId.delete(id);
+      }
+      return [...byId.values()].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    }
+
+    let syncTimer = null, syncing = false;
+    function syncSoon() {                 // 저장할 때마다 부르지만 실제로는 몇 초에 한 번만 나간다
+      if (!syncOn()) return;
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => syncNow(false), 3000);
+    }
+
+    async function syncNow(manual) {
+      if (!syncOn() || syncing) return;
+      syncing = true;
+      try {
+        const mine = items.filter((i) => !i.sample);     // 예시는 내 기록이 아니다
+        const res = await fetch(`${syncUrl()}/v1/${encodeURIComponent(syncKey())}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ items: mine, tomb: readTomb() }),
+        });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `서버 응답 ${res.status}`);
+        const doc = await res.json();
+
+        const merged = mergeItems(mine, doc.items || [], doc.tomb || {});
+        const changed = JSON.stringify(merged) !== JSON.stringify(mine);
+        if (changed) {
+          const samples = items.filter((i) => i.sample);
+          items = merged.length ? merged : samples;      // 서버도 비었으면 예시를 그대로 둔다
+          localStorage.setItem(KEY, JSON.stringify(items));
+          renderAll();
+        }
+        try { localStorage.setItem(TOMB_K, JSON.stringify(doc.tomb || {})); } catch {}
+        localStorage.setItem(SYNC_AT_K, String(Date.now()));
+        if (manual) showToast(changed ? "동기화했어요 · 기록을 가져왔습니다" : "이미 최신이에요");
+        renderSyncPanel();
+      } catch (e) {
+        if (manual) showToast(`동기화 실패: ${e.message}`);
+      } finally { syncing = false; }
+    }
+
+    function renderSyncPanel() {
+      const el = $("syncBody"); if (!el) return;
+      const at = +localStorage.getItem(SYNC_AT_K) || 0;
+      el.innerHTML = `
+        <label class="fld-label" for="s_url">동기화 서버 주소</label>
+        <input type="url" id="s_url" placeholder="https://..." value="${escapeHtml(syncUrl())}" />
+        <label class="fld-label" for="s_key" style="margin-top:.6rem">동기화 키</label>
+        <input type="text" id="s_key" placeholder="비어 있으면 새로 만듭니다" value="${escapeHtml(syncKey())}" />
+        <small class="fld-hint">다른 기기에서도 <b>같은 주소와 같은 키</b>를 넣으면 기록이 합쳐져요.
+          키를 아는 사람은 기록을 볼 수 있으니 아무에게나 알려주지 마세요.</small>
+        <p class="fld-hint" style="margin-top:.6rem">${at ? `마지막 동기화 ${new Date(at).toLocaleString("ko-KR")}` : "아직 동기화한 적 없어요"}</p>`;
+    }
+
     // ---------- 테마: 자동(해 기준) / 밝게 / 어둡게 ----------
     const MODE_KEY = "dp-theme-mode";          // auto | light | dark
 
@@ -4423,6 +4526,28 @@
       const m = $("moreMenu");
       if (m && m.open && !m.contains(e.target)) m.open = false;
     });
+    $("btnSync").addEventListener("click", () => {
+      $("moreMenu").open = false;
+      if (!syncKey()) localStorage.setItem(SYNC_KEY_K, newSyncKey());   // 처음이면 키를 만들어 준다
+      renderSyncPanel();
+      $("syncDlg").showModal();
+    });
+    $("syncClose").addEventListener("click", () => $("syncDlg").close());
+    $("syncSaveBtn").addEventListener("click", () => {
+      const u = $("s_url").value.trim(), k = $("s_key").value.trim();
+      localStorage.setItem(SYNC_URL_K, u);
+      localStorage.setItem(SYNC_KEY_K, k || newSyncKey());
+      renderSyncPanel();
+      showToast(syncOn() ? "저장했어요" : "주소와 키가 둘 다 있어야 동기화돼요");
+    });
+    $("syncRunBtn").addEventListener("click", () => {
+      $("syncSaveBtn").click();
+      syncNow(true);
+    });
+
+    // 앱을 열 때 한 번 맞춰본다
+    if (syncOn()) setTimeout(() => syncNow(false), 800);
+
     const MODE_CYCLE = { auto: "light", light: "dark", dark: "auto" };
     $("btnTheme").addEventListener("click", () => applyTheme(MODE_CYCLE[themeMode()]));
 
