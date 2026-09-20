@@ -2640,6 +2640,31 @@
       .boot-grid i { animation: none; opacity: 1; transform: none; }
       #boot.gone { transition: none; }
     }
+    /* 사진 여러 장 줄 — 두 장 이상일 때만 나온다 */
+    .photo-strip { display: flex; gap: .45rem; margin-top: .5rem; flex-wrap: wrap; }
+    .ps-item {
+      position: relative; width: 70px; height: 70px;
+      border-radius: var(--radius-sm); overflow: hidden;
+      box-shadow: inset 0 0 0 1px var(--pico-muted-border-color, rgba(128,128,128,.3));
+    }
+    .ps-item.is-main { box-shadow: inset 0 0 0 2px var(--brand); }
+    .ps-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ps-tag {
+      position: absolute; left: 0; bottom: 0; padding: 1px 5px;
+      font-size: .65rem; font-weight: 700;
+      background: var(--brand); color: #fff; border-top-right-radius: 5px;
+    }
+    .ps-x, .ps-up {
+      position: absolute; margin: 0; padding: 0; border: none; line-height: 1;
+      background: rgba(10, 6, 20, .66); color: #fff; cursor: pointer;
+    }
+    .ps-x { top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; font-size: .7rem; }
+    .ps-up { left: 0; bottom: 0; padding: 2px 5px; font-size: .64rem; border-top-right-radius: 5px; }
+    .ps-x:hover, .ps-up:hover { background: rgba(10, 6, 20, .85); }
+    @media (pointer: coarse) {
+      .ps-item { width: 76px; height: 76px; }
+      .ps-x { width: 26px !important; height: 26px !important; }
+    }
 </style>
 </head>
 
@@ -2778,8 +2803,10 @@
         <div class="photo-pick" id="photoSlot">
           <div class="photo-shot" id="photoShot" hidden>
             <img id="f_preview" class="thumb-preview" alt="미리보기" />
-            <button type="button" id="btnPhotoClear" class="shot-x" aria-label="사진 빼기">✕</button>
+            <button type="button" id="btnPhotoClear" class="shot-x" aria-label="이 사진 빼기">✕</button>
           </div>
+          <!-- 두 장 이상이면 여기에 줄지어 선다. 첫 장이 대표. -->
+          <div id="photoStrip" class="photo-strip" hidden></div>
 
           <div id="photoEmpty" class="photo-well">
             <button type="button" id="btnCam" class="pw-act">
@@ -2798,6 +2825,7 @@
           <p id="photoWhy" class="photo-why">
             사진을 넣으면 <b>진행 칸이 그림 위에 얹혀요</b> — 어디까지 붙였는지 한눈에 보입니다.
           </p>
+          <button type="button" id="btnPhotoAdd" class="link-btn photo-swap" hidden>사진 더 넣기</button>
           <button type="button" id="btnPhotoSwap" class="link-btn photo-swap" hidden>사진 바꾸기</button>
 
           <input type="file" id="f_photo" accept="image/*" hidden />
@@ -3135,13 +3163,25 @@
       // 기록만 담으면, 브라우저 데이터를 지운 사람은 이 파일이 있어도
       // 클라우드에 있는 제 기록으로 못 돌아간다(키가 그 기기에만 있었으니).
       // 그래서 키도 같이 넣는다 — 이 파일은 남에게 주는 물건이 아니다.
+      // 사진은 평소 보관소에 따로 있지만, 백업 파일은 한 덩이여야 쓸모가 있다.
+      // 내보낼 때만 꺼내서 같이 담는다.
+      const blobToDataUrl = (b) => new Promise((res) => {
+        const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => res(null);
+        r.readAsDataURL(b);
+      });
+      const photoBag = {};
+      for (const id of new Set(items.flatMap((i) => (Array.isArray(i.photos) ? i.photos : [])))) {
+        const b = await photoGet(id);
+        if (b) photoBag[id] = await blobToDataUrl(b);
+      }
       const raw = JSON.stringify({
         _: "DOT-LOG 백업 — 이 파일에는 동기화 키가 들어 있습니다. 남에게 주지 마세요.",
-        version: 2,
+        version: 3,
         exportedAt: new Date().toISOString(),
         syncKey: syncKey() || null,
         syncUrl: syncKey() ? syncUrl() : null,
         items,
+        photoData: photoBag,
       }, null, 2);
       try {
         const dl = await window.claude?.use?.("downloads");
@@ -3274,6 +3314,105 @@
       } else {
         el.innerHTML = `기록은 이 브라우저에 자동 저장돼요. 기기를 옮길 땐 ⋯ 메뉴에서 파일로 내려받으세요.`;
       }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  사진 보관소
+    // ═══════════════════════════════════════════════════════════════
+    // 사진을 기록 안에 넣어 두면 칸 하나만 눌러도 사진 전부가 다시 오간다.
+    // 기록은 작고 자주 바뀌지만 사진은 크고 한 번 찍으면 안 바뀌니, 따로 둔다.
+    //
+    // id 는 내용에서 뽑는다(SHA-256 앞 16자리). 그래서
+    //  · 같은 사진을 두 번 넣어도 한 장만 저장된다
+    //  · 서버에 이미 있는지 id 만 보고 알 수 있다 — 바뀐 것만 올린다
+    //  · 나중에 저장소를 R2 로 옮겨도 앱은 id 만 알면 되니 코드가 안 바뀐다
+    //
+    // localStorage 가 아니라 IndexedDB 에 Blob 으로 둔다.
+    // localStorage 는 5MB 에서 막히고 문자열만 받아서 base64 로 부풀려야 한다.
+    const PDB = "dotlog-photos", PSTORE = "photos";
+
+    function pdb() {
+      return new Promise((res, rej) => {
+        const r = indexedDB.open(PDB, 1);
+        r.onupgradeneeded = () => r.result.createObjectStore(PSTORE);
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+    }
+
+    async function photoHash(blob) {
+      const buf = await blob.arrayBuffer();
+      const h = await crypto.subtle.digest("SHA-256", buf);
+      return "p_" + [...new Uint8Array(h)].slice(0, 8)
+        .map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    /** 사진 한 장을 넣고 id 를 돌려준다. 같은 내용이면 같은 id 라 덧쓰기가 무해하다. */
+    async function photoPut(blob, id) {
+      const key = id || (await photoHash(blob));
+      const d = await pdb();
+      await new Promise((res, rej) => {
+        const t = d.transaction(PSTORE, "readwrite");
+        t.objectStore(PSTORE).put(blob, key);
+        t.oncomplete = res; t.onerror = () => rej(t.error);
+      });
+      return key;
+    }
+
+    async function photoGet(id) {
+      try {
+        const d = await pdb();
+        return await new Promise((res) => {
+          const t = d.transaction(PSTORE, "readonly");
+          const q = t.objectStore(PSTORE).get(id);
+          q.onsuccess = () => res(q.result || null);
+          q.onerror = () => res(null);
+        });
+      } catch { return null; }
+    }
+
+    async function photoKeys() {
+      try {
+        const d = await pdb();
+        return await new Promise((res) => {
+          const t = d.transaction(PSTORE, "readonly");
+          const q = t.objectStore(PSTORE).getAllKeys();
+          q.onsuccess = () => res(q.result || []);
+          q.onerror = () => res([]);
+        });
+      } catch { return []; }
+    }
+
+    async function photoDrop(id) {
+      try {
+        const d = await pdb();
+        await new Promise((res) => {
+          const t = d.transaction(PSTORE, "readwrite");
+          t.objectStore(PSTORE).delete(id);
+          t.oncomplete = res; t.onerror = res;
+        });
+      } catch {}
+    }
+
+    // 화면은 동기로 그린다. 그래서 id → 볼 수 있는 주소를 미리 만들어 둔다.
+    const PHOTO_URL = new Map();
+    async function photoHydrate(ids) {
+      let added = 0;
+      for (const id of new Set(ids)) {
+        if (!id || PHOTO_URL.has(id)) continue;
+        const b = await photoGet(id);
+        if (b) { PHOTO_URL.set(id, URL.createObjectURL(b)); added++; }
+      }
+      return added;
+    }
+
+    /** 이 작품의 대표 사진 주소. 옛 형식(기록 안 base64·samples 경로)도 같이 받는다. */
+    function photoSrc(item) {
+      if (!item) return "";
+      const ids = Array.isArray(item.photos) ? item.photos : [];
+      for (const id of ids) { const u = PHOTO_URL.get(id); if (u) return u; }
+      if (ids.length) return "";              // 아직 안 불러왔다 — 곧 다시 그린다
+      return safePhoto(item.photo);           // 옛 기록과 예시
     }
 
     const SNAP_KEY = KEY + "-snapshot";
@@ -3544,7 +3683,7 @@
       const perDay = now.schedule && now.schedule.perDay;
       const daysLeft = (perDay && left) ? Math.ceil(left / perDay) : null;
 
-      const nowPhoto = safePhoto(now.photo);
+      const nowPhoto = photoSrc(now);
       const thumb = nowPhoto
         ? `<img src="${escapeHtml(nowPhoto)}" alt="" />`
         : `<span class="nw-mono">${escapeHtml((now.name || "?").trim().charAt(0) || "?")}</span>`;
@@ -3675,7 +3814,7 @@
           dateLine = `${fmtK(i.start)} 시작`;
         }
         const initial = escapeHtml((i.name || "?").trim().charAt(0) || "?");
-        const ph = safePhoto(i.photo);
+        const ph = photoSrc(i);
         const thumbInner = ph
           ? `<img src="${escapeHtml(ph)}" alt="${escapeHtml(i.name)}" loading="lazy" />`
           : (i.grid ? "" : `<span class="dp-mono">${initial}</span>`);
@@ -3994,7 +4133,24 @@
       };
     }
 
-    function renderAll() { retireExamples(); renderStats(); renderGrid(); animateBars(); if (view === "album") renderAlbum(); renderSafety(); renderSyncNudge(); renderInApp(); renderInstall(); }
+    // 화면은 동기로 그리는데 사진은 IndexedDB 에서 비동기로 온다.
+    // 그래서 일단 그리고, 사진이 준비되면 한 번 더 그린다.
+    let hydrating = false;
+    async function hydrateThenRedraw() {
+      if (hydrating) return;
+      hydrating = true;
+      try {
+        const ids = items.flatMap((i) => (Array.isArray(i.photos) ? i.photos : []));
+        if (await photoHydrate(ids)) renderAll();
+      } finally { hydrating = false; }
+    }
+
+    function renderAll() {
+      retireExamples(); renderStats(); renderGrid(); animateBars();
+      if (view === "album") renderAlbum();
+      renderSafety(); renderSyncNudge(); renderInApp(); renderInstall();
+      hydrateThenRedraw();
+    }
 
     // ---------- 나의 컬렉션 ----------
     let view = localStorage.getItem("dp-view") || "list";
@@ -4063,7 +4219,7 @@
     function artNode(i, idx, cls) {
       const cm = artCm(i);
       const w = Math.round(cm.w * CM * ROOM_FIT), h = Math.round(cm.h * CM * ROOM_FIT);
-      const artPhoto = safePhoto(i.photo);
+      const artPhoto = photoSrc(i);
       const art = artPhoto
         ? `<img src="${escapeHtml(artPhoto)}" alt="${escapeHtml(i.name)}" loading="lazy" />`
         : `<span class="dp-mono">${escapeHtml((i.name || "?").trim().charAt(0) || "?")}</span>`;
@@ -4402,7 +4558,7 @@
       loadCatalog();                 // 자동완성 목록은 여기서 처음 필요해진다
       form.reset();
       $("acList").hidden = true; $("acList").innerHTML = ""; acCurrent = [];
-      $("f_photo").dataset.b64 = ""; $("f_photo").value = ""; $("f_photo_cam").value = "";
+      draftPhotos = []; $("f_photo").value = ""; $("f_photo_cam").value = "";
       renderPhotoUI();
       draftDone = [];
       editBase = null;
@@ -4437,7 +4593,9 @@
           ? item.sessions.map((x) => ({ date: x.date, hours: +x.hours || 0 }))
           : (item.hours > 0 ? [{ date: bestDate(item), hours: +item.hours }] : []);
         renderSessions();
-        if (item.photo) { $("f_photo").dataset.b64 = item.photo; renderPhotoUI(); }
+        draftPhotos = Array.isArray(item.photos) ? item.photos.slice() : [];
+        if (draftPhotos.length) { photoHydrate(draftPhotos).then(renderPhotoUI); }
+        renderPhotoUI();
         if (useGrid) {
           applyPresetUI(item.grid.cols, item.grid.rows);
           $("f_order").value = item.grid.order || "snake";
@@ -4665,7 +4823,7 @@
         rating: +$("f_rating").value || 0,
         sessions: draftSessions.map((x) => ({ date: x.date, hours: x.hours })),
         hours: sessionsTotal(draftSessions) || Math.max(0, +$("f_hours").value || 0),
-        photo: $("f_photo").dataset.b64 || "",
+        photos: draftPhotos.slice(),
       };
       if (!base.name) return;
 
@@ -4841,42 +4999,103 @@
     // ---------- 사진 넣기: 카메라 / 파일 선택 ----------
     // 사진이 있느냐에 따라 이 블록 전체가 바뀐다 — 흩어놓지 않고 여기서만 그린다.
     function renderPhotoUI() {
-      const b64 = $("f_photo").dataset.b64 || "";
-      const has = !!b64;
+      const ids = draftPhotos;
+      const has = ids.length > 0;
+      const main = has ? PHOTO_URL.get(ids[0]) || "" : "";
+
       if ($("photoShot")) $("photoShot").hidden = !has;
-      $("f_preview").src = b64;
+      $("f_preview").src = main;
       $("f_preview").style.display = has ? "block" : "none";
       if ($("photoEmpty"))    $("photoEmpty").hidden = has;
       if ($("photoWhy"))      $("photoWhy").hidden = has;
       if ($("btnPhotoSwap"))  $("btnPhotoSwap").hidden = !has;
       if ($("btnPhotoClear")) $("btnPhotoClear").hidden = !has;
+      if ($("btnPhotoAdd"))   $("btnPhotoAdd").hidden = !has || ids.length >= PHOTO_MAX;
+
+      // 두 장 이상일 때만 줄을 보여준다. 한 장이면 큰 미리보기로 충분하다.
+      const strip = $("photoStrip");
+      if (!strip) return;
+      strip.hidden = ids.length < 2;
+      strip.innerHTML = ids.length < 2 ? "" : ids.map((id, n) => `
+        <span class="ps-item${n === 0 ? " is-main" : ""}">
+          <img src="${escapeHtml(PHOTO_URL.get(id) || "")}" alt="사진 ${n + 1}" />
+          ${n === 0 ? '<span class="ps-tag">대표</span>'
+                    : `<button type="button" class="ps-up" data-up="${n}" aria-label="${n + 1}번째 사진을 대표로">대표로</button>`}
+          <button type="button" class="ps-x" data-rm="${n}" aria-label="${n + 1}번째 사진 빼기">✕</button>
+        </span>`).join("");
+
+      strip.querySelectorAll("[data-rm]").forEach((b) => {
+        b.onclick = () => { draftPhotos.splice(+b.dataset.rm, 1); renderPhotoUI(); syncStatusUI(); };
+      });
+      strip.querySelectorAll("[data-up]").forEach((b) => {
+        b.onclick = () => {
+          const n = +b.dataset.up;
+          draftPhotos.unshift(draftPhotos.splice(n, 1)[0]);   // 맨 앞이 대표
+          renderPhotoUI();
+        };
+      });
     }
 
-    // 두 경로 모두 dataURL 로 모인 뒤 같은 압축을 탄다.
-    function setPhotoFromDataURL(src, onFail) {
-      const img = new Image();
-      img.onerror = () => { setPhotoBusy(false); showToast("이 사진을 열 수 없어요. 다른 파일로 시도해 주세요"); onFail && onFail(); };
-      img.onload = () => {
-        // 예방: 저장공간 절약을 위해 사진을 더 작게 압축
-        const max = 800; let { width, height } = img;
-        if (width > max || height > max) { const r = Math.min(max/width, max/height); width = Math.round(width*r); height = Math.round(height*r); }
-        const canvas = document.createElement("canvas");
-        canvas.width = width; canvas.height = height;
-        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        // 같은 화질에 WebP 가 JPEG 보다 20~25% 작다. 사진이 곧 용량이라 그만큼
-        // 더 많은 작품을 넣을 수 있다. 인코딩을 못 하는 브라우저는 조용히 PNG 를
-        // 돌려주는데(규격상) 그건 오히려 크므로, 확인해서 JPEG 로 되돌린다.
-        let b64 = canvas.toDataURL("image/webp", 0.75);
-        if (!b64.startsWith("data:image/webp")) b64 = canvas.toDataURL("image/jpeg", 0.72);
-        // 탐지: 이 사진을 더하면 한도에 근접하는지 미리 경고
-        if (storageBytes() + b64.length * 2 > QUOTA_WARN) showToast("⚠️ 저장공간이 얼마 안 남았어요 — 백업 후 사용하세요");
-        $("f_photo").dataset.b64 = b64;
+    // 한 작품에 사진 몇 장까지. 진행 과정을 남기는 게 이 앱의 핵심이라
+    // 한 장으로는 모자라지만, 무제한이면 저장소가 금방 찬다.
+    const PHOTO_MAX = 4;
+
+    // 지금 편집 중인 작품의 사진 id 들. 폼이 들고 있는 상태다.
+    let draftPhotos = [];
+
+    /** 어떤 이미지 소스든 800px WebP 로 줄여 Blob 으로 만든다. */
+    function shrinkToBlob(src) {
+      return new Promise((res, rej) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";     // 카탈로그 이미지(원격)를 캔버스에 올리려면 필요
+        img.onerror = () => rej(new Error("열 수 없는 이미지"));
+        img.onload = () => {
+          const max = 800; let { width, height } = img;
+          if (width > max || height > max) {
+            const r = Math.min(max / width, max / height);
+            width = Math.round(width * r); height = Math.round(height * r);
+          }
+          const c = document.createElement("canvas");
+          c.width = width; c.height = height;
+          c.getContext("2d").drawImage(img, 0, 0, width, height);
+          // 같은 화질에 WebP 가 JPEG 보다 15~25% 작다. 못 만드는 브라우저는
+          // 규격상 PNG 를 돌려주는데 그건 더 크므로 JPEG 로 되돌린다.
+          c.toBlob(
+            (b) => (b && b.type === "image/webp")
+              ? res(b)
+              : c.toBlob((b2) => (b2 ? res(b2) : rej(new Error("변환 실패"))), "image/jpeg", 0.72),
+            "image/webp", 0.75,
+          );
+        };
+        img.src = src;
+      });
+    }
+
+    /** 사진 한 장을 받아 보관소에 넣고 폼에 붙인다. */
+    async function addPhotoFrom(src, onFail) {
+      if (draftPhotos.length >= PHOTO_MAX) {
+        setPhotoBusy(false);
+        showToast(`사진은 ${PHOTO_MAX}장까지 넣을 수 있어요`);
+        onFail && onFail();
+        return;
+      }
+      try {
+        const blob = await shrinkToBlob(src);
+        const id = await photoPut(blob);
+        if (!draftPhotos.includes(id)) draftPhotos.push(id);
+        PHOTO_URL.set(id, PHOTO_URL.get(id) || URL.createObjectURL(blob));
         setPhotoBusy(false);
         renderPhotoUI();
         syncStatusUI();
-      };
-      img.src = src;
+      } catch (e) {
+        setPhotoBusy(false);
+        showToast("이 사진을 열 수 없어요. 다른 파일로 시도해 주세요");
+        onFail && onFail();
+      }
     }
+
+    // 옛 이름을 그대로 둔다 — 카메라·파일·드롭이 다 이 이름을 부른다.
+    const setPhotoFromDataURL = (src, onFail) => addPhotoFrom(src, onFail);
     function setPhotoBusy(on) {
       const slot = $("photoSlot"); if (!slot) return;
       slot.classList.toggle("is-busy", on);
@@ -4895,11 +5114,12 @@
     $("f_photo_cam").addEventListener("change", (e) => readPhotoFile(e.target.files[0], e.target));
     $("btnPick").addEventListener("click", () => $("f_photo").click());
     $("btnPhotoClear").addEventListener("click", () => {
-      $("f_photo").dataset.b64 = ""; $("f_photo").value = ""; $("f_photo_cam").value = "";
+      draftPhotos = []; $("f_photo").value = ""; $("f_photo_cam").value = "";
       renderPhotoUI();
       syncStatusUI();
     });
-    $("btnPhotoSwap").addEventListener("click", () => $("f_photo").click());
+    $("btnPhotoSwap").addEventListener("click", () => { draftPhotos = []; $("f_photo").click(); });
+    $("btnPhotoAdd").addEventListener("click", () => $("f_photo").click());
 
     // PC: 끌어다 놓기 · 붙여넣기. 폰에서 위 두 버튼이 하는 일을 마우스로도 할 수 있게.
     const _well = $("photoEmpty");
@@ -4913,7 +5133,7 @@
       if (f) readPhotoFile(f, $("f_photo"));
     });
     $("dlg").addEventListener("paste", (e) => {
-      if ($("f_photo").dataset.b64) return;                  // 이미 넣었으면 가만둔다
+      if (draftPhotos.length >= PHOTO_MAX) return;           // 한도까지 찼으면 가만둔다
       const f = [...(e.clipboardData?.files || [])][0];
       if (f) { e.preventDefault(); readPhotoFile(f, $("f_photo")); }
     });
@@ -5024,7 +5244,9 @@
       $("f_brand").value = CAT_BRANDS[c.b] || c.b;
       if (c.sz && c.sz.length) $("f_size").value = cmOnly(c.sz[0]);
       if (c.d === "스퀘어" || c.d === "라운드") $("f_drill").value = c.d;
-      if (c.img) { $("f_photo").dataset.b64 = c.img; renderPhotoUI(); }
+      // 카탈로그 사진은 남의 서버에 있다. 주소만 들고 있으면 오프라인에서 안 보이고
+      // 그쪽이 지우면 같이 사라진다. 받아서 내 사진으로 만든다.
+      if (c.img && !draftPhotos.length) { setPhotoBusy(true); addPhotoFrom(c.img); }
       hideAc();
     }
 
@@ -5177,6 +5399,52 @@
     // 저장하는 순간 낡은 폼이 새 updatedAt 을 달고 남의 최신 편집을 이긴다.
     const dialogOpen = () => !!(dlg && dlg.open);
 
+    /**
+     * 사진 맞추기. 기록 동기화와 따로 돈다.
+     *
+     * 사진은 한 번 만들면 안 바뀐다(내용이 바뀌면 id 가 바뀌니까). 그래서
+     * '서버에 있는 id 목록'과 '내가 가진 id'를 비교해서 모자란 것만 주고받으면 된다.
+     * 칸을 아무리 눌러도 사진은 다시 안 올라간다.
+     */
+    async function syncPhotos(needed) {
+      const want = [...new Set(needed)].filter((x) => /^p_[a-f0-9]{16}$/.test(x));
+      if (!want.length) return 0;
+      const base = `${syncUrl()}/v1/${encodeURIComponent(syncKey())}/photos`;
+
+      let onServer = new Set();
+      try {
+        const r = await fetch(base);
+        if (r.ok) onServer = new Set((await r.json()).ids || []);
+      } catch { return 0; }              // 목록을 못 받으면 이번엔 건너뛴다
+
+      const mine = new Set(await photoKeys());
+      let moved = 0;
+
+      // 내게는 있는데 서버에 없는 것 → 올린다
+      for (const id of want) {
+        if (onServer.has(id) || !mine.has(id)) continue;
+        const blob = await photoGet(id);
+        if (!blob) continue;
+        try {
+          const r = await fetch(`${base}/${id}`, { method: "PUT", body: blob });
+          if (r.ok) moved++;
+        } catch {}
+      }
+      // 서버에는 있는데 내게 없는 것 → 받는다 (다른 기기에서 넣은 사진)
+      for (const id of want) {
+        if (mine.has(id) || !onServer.has(id)) continue;
+        try {
+          const r = await fetch(`${base}/${id}`);
+          if (!r.ok) continue;
+          const blob = await r.blob();
+          await photoPut(blob, id);
+          PHOTO_URL.set(id, URL.createObjectURL(blob));
+          moved++;
+        } catch {}
+      }
+      return moved;
+    }
+
     async function syncNow(manual) {
       if (!syncOn() || syncing) return;
       if (!manual && dialogOpen()) { syncSoon(); return; }   // 편집 끝나고 다시 온다
@@ -5204,6 +5472,13 @@
         localStorage.setItem(SYNC_AT_K, String(Date.now()));
         syncFails = 0; syncLastErr = "";
         renderSyncWarn();
+
+        // 기록이 맞춰진 뒤에 사진을 맞춘다. 순서가 중요하다 —
+        // 어떤 사진이 필요한지는 기록을 받아봐야 알 수 있다.
+        try {
+          const need = items.flatMap((i) => (Array.isArray(i.photos) ? i.photos : []));
+          if (await syncPhotos(need)) renderAll();
+        } catch {}
         if (manual) showToast(changed ? "동기화했어요 · 기록을 가져왔습니다" : "이미 최신이에요");
         renderSyncPanel();
       } catch (e) {
@@ -5515,6 +5790,22 @@
           const list = Array.isArray(parsed) ? parsed
                      : Array.isArray(parsed && parsed.items) ? parsed.items : null;
           if (!list) throw new Error();
+          // 백업에 사진이 같이 담겨 있으면 보관소로 되돌린다. 기록보다 먼저 —
+          // 기록만 들어가고 사진이 없으면 빈 액자가 된다.
+          const bag = (parsed && parsed.photoData) || {};
+          const ids = Object.keys(bag);
+          if (ids.length) {
+            (async () => {
+              for (const id of ids) {
+                try {
+                  const b = await (await fetch(bag[id])).blob();
+                  await photoPut(b, id);
+                  PHOTO_URL.set(id, PHOTO_URL.get(id) || URL.createObjectURL(b));
+                } catch {}
+              }
+              renderAll();
+            })();
+          }
           if (confirm(`${list.length}개의 기록을 불러올까요? 현재 목록에 추가됩니다.`)) {
             const existing = new Set(items.map((i) => i.id));
             list.forEach((d) => { if (d && d.id && !existing.has(d.id)) items.push(d); });
@@ -5536,6 +5827,40 @@
       };
       reader.readAsText(file);
     });
+
+    // ── 옛 사진을 보관소로 옮기기 (한 번만) ──────────────────────
+    // 전에는 사진이 기록 문서 안에 base64 로 들어 있었다. 그러면 칸 하나만
+    // 눌러도 사진 전부가 다시 오가고, 문서 하나가 한도에 부딪혀 30개에서 막힌다.
+    //
+    // 순서가 중요하다: 전부 옮기는 데 성공했을 때만 기록을 갈아끼운다.
+    // 중간에 실패하면 아무것도 건드리지 않고 다음에 다시 한다 —
+    // 반쯤 옮긴 채로 저장하면 사진이 사라진 것처럼 보인다.
+    async function migratePhotos() {
+      const old = items.filter((i) => typeof i.photo === "string" &&
+                                      i.photo.startsWith("data:image/") &&
+                                      !(Array.isArray(i.photos) && i.photos.length));
+      if (!old.length) return false;
+      try {
+        const moved = [];
+        for (const it of old) {
+          const blob = await (await fetch(it.photo)).blob();   // data URL → Blob
+          const id = await photoPut(blob);
+          PHOTO_URL.set(id, PHOTO_URL.get(id) || URL.createObjectURL(blob));
+          moved.push([it.id, id]);
+        }
+        // 여기까지 왔으면 전부 보관소에 들어갔다. 그제야 기록을 고친다.
+        const by = new Map(moved);
+        items = items.map((i) => {
+          if (!by.has(i.id)) return i;
+          const { photo, ...rest } = i;
+          return { ...rest, photos: [by.get(i.id)] };
+        });
+        save();
+        return true;
+      } catch (e) {
+        return false;   // 옛 형식도 화면엔 잘 나온다. 다음에 다시 하면 된다.
+      }
+    }
 
     // ---------- 첫 실행: 샘플 ----------
     // 예시는 앱이 주는 것이라 앱이 갱신해야 한다. 옛 버전에서 심어둔 예시가
@@ -5620,6 +5945,9 @@
 
     renderAll();
     setView(view);
+
+    // 옛 사진이 남아 있으면 조용히 옮기고 다시 그린다.
+    migratePhotos().then((did) => { if (did) renderAll(); });
 
     // 화면이 실제로 그려진 뒤에 여는 화면을 물린다. 한 프레임 넘겨야
     // 첫 그림이 끝난 뒤에 걷히고, 안 그러면 빈 화면이 잠깐 비친다.
