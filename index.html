@@ -2940,6 +2940,94 @@
       background: color-mix(in srgb, var(--gold) 7%, transparent);
     }
     @media (pointer: coarse) { .done-peek { min-height: 48px !important; } }
+    /* ═══ 목록 = 도록(catalogue) ═══════════════════════════════════════
+       상자를 걷어낸다. 채워진 판 + 테두리 + 그림자 + 뜨는 효과가 겹치면
+       작품보다 상자가 먼저 보인다. 남길 것은 그림과 글자뿐이고,
+       칸을 나누는 일은 여백이 한다.
+       ════════════════════════════════════════════════════════════════ */
+    .dp-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 196px), 1fr));
+      gap: clamp(26px, 2.2vw, 40px) clamp(15px, 1.6vw, 26px);
+      align-items: start;
+    }
+    .dp-card {
+      display: block; background: none; border: 0; box-shadow: none;
+      border-radius: 0; padding: 0; overflow: visible; transform: none;
+      transition: none;
+    }
+    .dp-card:hover, .dp-card:focus-within { transform: none; box-shadow: none; }
+
+    /* 그림은 제 비율 그대로. 높이를 맞추려고 잘라내면 도록이 아니라 격자가 된다. */
+    .dp-card .dp-thumb {
+      border-radius: 2px; box-shadow: 0 0 0 1px var(--hair);
+      background: color-mix(in srgb, var(--paper) 74%, var(--pico-card-background-color));
+    }
+    .dp-card .dp-thumb > img { object-fit: cover; }
+    /* 상태는 큰 알약 대신 캡션 앞의 점 하나로 옮긴다(아래 .dp-sub::before) */
+    .dp-card .dp-badge { display: none; }
+
+    .dp-card .body { padding: 11px 2px 0; }
+    .dp-card .card-head { align-items: flex-start; gap: 6px; }
+    .dp-card h3 {
+      font-family: var(--font-display); font-weight: 700;
+      font-size: .97rem; line-height: 1.32; letter-spacing: -.022em;
+      -webkit-line-clamp: 2; margin: 0;
+    }
+    .dp-card .dp-sub { font-size: .7rem; font-weight: 500; letter-spacing: .015em; margin: 5px 0 0; }
+    .dp-card .dp-sub.muted { opacity: .74; }
+    .dp-card .tag-sample { font-size: .58rem; letter-spacing: .08em; }
+
+    /* 진행은 눈금 막대 대신 머리카락 한 줄 + 숫자. 히어로와 같은 언어로 맞춘다. */
+    .dp-card .dp-progress-wrap { margin: 10px 0 0; }
+    .dp-card .dp-progress-wrap::after,
+    .dp-card .dp-progress-wrap::before { display: none; }
+    .dp-card .dp-progress-wrap progress {
+      width: 100%; height: 1px; display: block; appearance: none; -webkit-appearance: none;
+      border: 0; background: var(--hair); margin: 7px 0 0;
+    }
+    .dp-card .dp-progress-wrap progress::-webkit-progress-bar { background: var(--hair); }
+    .dp-card .dp-progress-wrap progress::-webkit-progress-value { background: var(--brand); }
+    .dp-card .dp-progress-wrap progress::-moz-progress-bar { background: var(--brand); }
+    .dp-card .pct {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: .7rem; font-weight: 600; letter-spacing: .02em;
+      font-variant-numeric: tabular-nums; color: var(--pico-muted-color);
+    }
+    .dp-card .pct span:last-child { color: var(--pico-color); font-weight: 700; }
+
+    /* 버튼은 분홍 알약을 벗고 밑줄 글자로. 카드마다 색덩어리가 있으면 목록이 시끄럽다. */
+    .dp-card .dp-card-actions { margin-top: 10px; gap: 14px; flex-wrap: wrap; }
+    .dp-card .dp-card-actions button,
+    .dp-card .dp-card-actions .secondary,
+    .dp-card .dp-card-actions .primary-fill {
+      width: auto; margin: 0; padding: 0; border: 0; background: none; box-shadow: none;
+      font-size: .72rem; font-weight: 600; letter-spacing: .02em;
+      color: var(--pico-muted-color); text-decoration: underline;
+      text-underline-offset: 4px; text-decoration-thickness: 1px;
+      text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+    }
+    .dp-card .dp-card-actions button:hover { color: var(--pico-color); }
+    .dp-card .dp-card-actions .primary-fill { color: var(--brand); }
+    .dp-card .dp-card-actions .danger:hover { color: #d23b5b; }
+
+    /* '지금 이거' 는 버튼 모양을 버리고 표식만 남긴다 */
+    .dp-card .now-btn {
+      padding: 0; border: 0; background: none; box-shadow: none; width: auto; margin: 0;
+      font-size: .66rem; font-weight: 700; letter-spacing: .04em; color: var(--pico-muted-color);
+    }
+    .dp-card .now-btn.on { color: var(--brand); }
+    .dp-card .fold-btn { opacity: .5; }
+
+    .dp-card .dp-note {
+      font-size: .74rem; line-height: 1.55; margin: 9px 0 0; padding-left: 9px;
+      border-left: 1px solid var(--hair); color: var(--pico-muted-color);
+    }
+    .dp-card.folded .dp-thumb { aspect-ratio: auto; }
+
+    @media (max-width: 480px) {
+      .dp-grid { grid-template-columns: repeat(2, 1fr); gap: 22px 14px; }
+      .dp-card h3 { font-size: .88rem; }
+    }
 </style>
 </head>
 
@@ -3028,7 +3116,7 @@
     <section id="albumView" hidden></section>
 
     <footer class="dp-foot">
-      썸네일의 칸을 탭하면 그 구간을 완료 처리해요 · <span id="storageStatus">기록은 이 브라우저에 자동 저장돼요.</span>
+      맨 위 작품의 칸을 탭하면 그 구간을 완료 처리해요 · <span id="storageStatus">기록은 이 브라우저에 자동 저장돼요.</span>
     </footer>
     <p class="trust-line"><span aria-hidden="true">🔒</span> 계정 없이 이 브라우저에만 저장돼요 · 무료 · 설치 불필요</p>
   </main>
@@ -4227,7 +4315,6 @@
       // 지금 붙이고 있는 작품 = 사용자가 가장 자주 만질 것. 그 한 장만 크게 둔다.
       // 큰 카드는 '지금 붙이는 중'으로 고른 작품. 안 골랐으면 첫 진행작.
       const pinIdx = pinnedId ? list.findIndex((x) => x.id === pinnedId) : -1;
-      const featureIdx = pinIdx >= 0 ? pinIdx : Math.max(0, list.findIndex((x) => x.status === "progress"));
       gridEl.innerHTML = list.map((i, idx) => {
         const st = STATUS[i.status] || STATUS.planned;
         // 위계 다이어트: 브랜드·사이즈는 한 줄, 부가정보(드릴·캔버스·시간)는 아래 옅게
@@ -4257,10 +4344,11 @@
           ? `<span class="spacer"></span>`   // 칸을 직접 누르면 되는 일이라 버튼을 두지 않는다
           : (!i.grid ? `<button class="secondary outline primary-fill" data-plan="${i.id}">구간·일정 짜기</button>` : `<span class="spacer"></span>`);
 
-        // 시각적 위계: 지금 붙이고 있는 작품 한 장만 크게. 나머지는 훑기용 한 줄.
-        const isFeature = (idx === featureIdx);
+        // 전부 같은 크기다. 대표 한 장을 키우던 걸 없앴다 —
+        // 맨 위 히어로가 이미 '지금 붙이는 작품'을 크게 보여주므로 여기서 또 키울 이유가 없고,
+        // 한 장만 크면 옆칸이 그 높이에 맞춰 늘어나 오른쪽이 텅 빈다.
         const isFold = folded.has(i.id);
-        return `<article class="dp-card ${i.status === "done" ? "is-done" : ""}${isFeature ? "" : " compact"}${isFold ? " folded" : ""}">
+        return `<article class="dp-card ${i.status === "done" ? "is-done" : ""}${isFold ? " folded" : ""}">
           <!-- 목록 카드에는 비닐(구간 칸)을 얹지 않는다. 떼는 자리는 맨 위 히어로 하나면 된다 —
                같은 그림이 두 군데서 반쯤 벗겨져 있으면 어느 쪽이 진짜인지 헷갈린다.
                여기서는 그림을 그대로 보여주고, 진행은 아래 눈금 막대가 말한다. -->
