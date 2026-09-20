@@ -2472,6 +2472,20 @@
       border: none; border-radius: var(--radius-sm);
     }
     .inapp-bar button#iaOpen:hover { background: color-mix(in srgb, var(--warn-fg) 86%, #000); }
+    /* 설치 권유 — 경고가 아니라 제안이라 브랜드 쪽 낮은 톤으로 */
+    .install-bar {
+      display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+      margin: 0 0 1rem; padding: .8rem .9rem;
+      background: color-mix(in srgb, var(--lav-400) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--lav-400) 34%, transparent);
+      border-radius: var(--radius-md);
+    }
+    .install-bar .ib-text { flex: 1 1 14rem; display: grid; gap: 2px; min-width: 0; }
+    .install-bar .ib-text b { font-size: .93rem; }
+    .install-bar .ib-text small { font-size: .82rem; line-height: 1.45; opacity: .8; }
+    .install-bar .ib-act { display: flex; gap: .4rem; flex: 0 0 auto; margin-left: auto; }
+    .install-bar button { margin: 0; padding: .5rem .9rem; font-size: .85rem; line-height: 1; }
+    @media (pointer: coarse) { .install-bar button { min-height: 44px !important; } }
 </style>
 </head>
 
@@ -3584,31 +3598,115 @@
                  : /Line\//i.test(u) ? "라인"
                  : /BAND\//i.test(u) ? "밴드"
                  : "다른 앱";
-      return { name, android: /Android/i.test(u) };
+      return { name, android: /Android/i.test(u), kakao: /KAKAOTALK/i.test(u) };
     })();
 
     function renderInApp() {
       if (!IN_APP) return;
       const host = document.querySelector("main.container");
       if ($("inAppBar")) return;
+      // 카톡은 아이폰·갤럭시 둘 다 제 스킴으로 기본 브라우저를 열어준다.
+      // 그 밖의 앱은 안드로이드만 intent 로 되고, 아이폰에서는 손으로 해야 한다.
+      const canJump = IN_APP.kakao || IN_APP.android;
       const el = document.createElement("div");
       el.id = "inAppBar";
       el.className = "inapp-bar";
       el.setAttribute("role", "alert");
       el.innerHTML = `
         <span class="ia-text">
-          <b>${escapeHtml(IN_APP.name)} 안에서 열렸어요</b>
-          <small>여기서 남긴 기록은 <b>크롬·사파리에서는 안 보입니다.</b>
-          저장 공간이 따로 놀거든요. 홈 화면에 앱으로 넣는 것도 여기서는 안 돼요.
-          ${IN_APP.android ? "아래 버튼으로 옮겨서 시작해 주세요." : "오른쪽 아래 <b>⋯</b> 또는 <b>공유</b> → <b>Safari로 열기</b>를 눌러 주세요."}</small>
+          <b>${escapeHtml(IN_APP.name)} 안에서 열렸어요 · 밖에서 열어주세요</b>
+          <small>여기서 남긴 기록은 <b>크롬·사파리에서는 안 보입니다</b>(저장 공간이 따로 놀아요).
+          홈 화면에 앱으로 넣는 것도 여기서는 안 돼요.
+          ${canJump ? "아래 버튼을 누르면 옮겨집니다." :
+            "오른쪽 아래 <b>공유</b> 또는 <b>⋯</b> → <b>Safari로 열기</b>를 눌러 주세요."}</small>
         </span>
-        ${IN_APP.android ? `<button type="button" id="iaOpen">크롬으로 열기</button>` : ""}`;
+        ${canJump ? `<button type="button" id="iaOpen">브라우저로 열기</button>` : ""}`;
       host.insertBefore(el, host.firstChild);
       const btn = $("iaOpen");
       if (btn) btn.onclick = () => {
-        // 안드로이드는 인텐트로 실제 브라우저를 부를 수 있다. iOS 는 방법이 없어 안내만 한다.
-        const u = location.href.replace(/^https?:\/\//, "");
-        location.href = `intent://${u}#Intent;scheme=https;package=com.android.chrome;end`;
+        const url = location.href;
+        if (IN_APP.kakao) {
+          // 카톡 전용 — 기기 기본 브라우저로 넘긴다 (iOS·Android 공통)
+          location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(url);
+          return;
+        }
+        // 안드로이드 일반: 크롬을 지정해 부르고, 없으면 기본 브라우저로
+        const bare = url.replace(/^https?:\/\//, "");
+        location.href = `intent://${bare}#Intent;scheme=https;package=com.android.chrome;` +
+                        `S.browser_fallback_url=${encodeURIComponent(url)};end`;
+      };
+    }
+
+    // ── 앱으로 설치하기 ────────────────────────────────────────────
+    // 카톡에서 브라우저로 넘어온 다음이 설치를 권할 자리다. 여기까지 와서
+    // 메뉴를 뒤져 '홈 화면에 추가'를 찾아내라고 하면 대부분 안 한다.
+    // 크롬은 beforeinstallprompt 를 주므로 버튼 한 번으로 끝나고,
+    // iOS 사파리는 그런 게 없어서 어디를 누르는지 그림처럼 짚어준다.
+    const INSTALL_K = "dp-install-off";
+    let deferredPrompt = null;
+
+    const isStandalone = () =>
+      window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    const isIOSSafari = () => {
+      const u = navigator.userAgent || "";
+      return /iPhone|iPad|iPod/.test(u) && /Safari/.test(u) && !/CriOS|FxiOS|EdgiOS/.test(u);
+    };
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();          // 크롬 기본 배너 대신 우리 자리에서 권한다
+      deferredPrompt = e;
+      renderInstall();
+    });
+    window.addEventListener("appinstalled", () => {
+      deferredPrompt = null;
+      try { localStorage.setItem(INSTALL_K, "1"); } catch {}
+      const el = $("installBar"); if (el) el.remove();
+      showToast("설치했어요 · 이제 홈 화면에서 바로 열려요");
+    });
+
+    function renderInstall() {
+      const host = document.querySelector("main.container");
+      let el = $("installBar");
+      let off = false;
+      try { off = !!localStorage.getItem(INSTALL_K); } catch {}
+      // 인앱 브라우저에서는 설치가 아예 안 된다 — 거기선 '밖으로 나가기'가 먼저다.
+      const show = !off && !IN_APP && !isStandalone() && (deferredPrompt || isIOSSafari());
+      if (!show) { if (el) el.remove(); return; }
+      if (el) return;
+      el = document.createElement("div");
+      el.id = "installBar";
+      el.className = "install-bar";
+      el.innerHTML = deferredPrompt ? `
+        <span class="ib-text">
+          <b>홈 화면에 앱으로 두기</b>
+          <small>주소를 칠 필요 없이 바로 열리고, 인터넷이 없어도 켜집니다.</small>
+        </span>
+        <span class="ib-act">
+          <button type="button" id="ibGo">설치</button>
+          <button type="button" id="ibNo" class="secondary">나중에</button>
+        </span>` : `
+        <span class="ib-text">
+          <b>홈 화면에 앱으로 두기</b>
+          <small>화면 아래 가운데 <b>공유</b> 버튼(위로 향한 화살표)을 누르고 <b>홈 화면에 추가</b>를 고르면 돼요. 주소를 칠 필요 없이 바로 열립니다.</small>
+        </span>
+        <span class="ib-act"><button type="button" id="ibNo" class="secondary">알겠어요</button></span>`;
+      host.insertBefore(el, host.firstChild);
+
+      const go = $("ibGo");
+      if (go) go.onclick = async () => {
+        const p = deferredPrompt; if (!p) return;
+        deferredPrompt = null;
+        p.prompt();
+        const { outcome } = await p.userChoice.catch(() => ({ outcome: "dismissed" }));
+        if (outcome !== "accepted") {
+          // 거절은 기억한다. 열 때마다 또 권하면 그게 더 성가시다.
+          try { localStorage.setItem(INSTALL_K, "1"); } catch {}
+        }
+        el.remove();
+      };
+      $("ibNo").onclick = () => {
+        try { localStorage.setItem(INSTALL_K, "1"); } catch {}
+        el.remove();
       };
     }
 
@@ -3647,7 +3745,7 @@
       };
     }
 
-    function renderAll() { retireExamples(); renderStats(); renderGrid(); animateBars(); if (view === "album") renderAlbum(); renderSafety(); renderSyncNudge(); renderInApp(); }
+    function renderAll() { retireExamples(); renderStats(); renderGrid(); animateBars(); if (view === "album") renderAlbum(); renderSafety(); renderSyncNudge(); renderInApp(); renderInstall(); }
 
     // ---------- 나의 컬렉션 ----------
     let view = localStorage.getItem("dp-view") || "list";

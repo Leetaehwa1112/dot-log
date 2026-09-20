@@ -7,7 +7,7 @@
  * 실제로 v1 을 안 올려서 배포가 한 번 헛돌았다.
  * 단 문서는 cache-first 라, 화면에 반영되는 건 다음 번 열 때다.
  */
-const V = "dotlog-v5";   // 올릴 때마다 바꾼다 — 안 바꾸면 설치된 기기가 옛 index.html 을 계속 쓴다
+const V = "dotlog-v6";   // 올릴 때마다 바꾼다 — 안 바꾸면 설치된 기기가 옛 index.html 을 계속 쓴다
 const SHELL = ["./", "./index.html", "./products-catalog.js", "./manifest.webmanifest",
                "./icons/icon-192.png", "./icons/icon-512.png"];
 
