@@ -2422,6 +2422,33 @@
       transition: width var(--dur-2) var(--ease-out);
     }
     @media (prefers-reduced-motion: reduce) { .cap-bar span { transition: none } }
+    /* 연결 확인창의 경고 블록 — 되돌릴 수 없는 작업이라 조용하면 안 된다 */
+    .join-warn {
+      display: grid; gap: .3rem;
+      margin: 0 0 1rem; padding: .8rem .9rem;
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-line); border-left-width: 3px;
+      border-radius: var(--radius-md);
+      color: var(--warn-fg);
+    }
+    .join-warn b { font-size: .93rem; }
+    .join-warn small { font-size: .82rem; line-height: 1.5; opacity: .9; }
+    #joinDlg article { max-width: 30rem; }
+    /* 기록이 쌓였는데 아직 백업이 없을 때 한 번만 묻는 자리.
+       경고가 아니라 제안이라, 색은 브랜드 쪽으로 낮게 깐다. */
+    .sync-nudge {
+      display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+      margin: 0 0 1rem; padding: .8rem .9rem;
+      background: var(--brand-soft);
+      border: 1px solid color-mix(in srgb, var(--brand) 32%, transparent);
+      border-radius: var(--radius-md);
+    }
+    .sync-nudge .sn-text { flex: 1 1 14rem; display: grid; gap: 2px; min-width: 0; }
+    .sync-nudge .sn-text b { font-size: .93rem; }
+    .sync-nudge .sn-text small { font-size: .81rem; line-height: 1.45; opacity: .78; }
+    .sync-nudge .sn-act { display: flex; gap: .4rem; flex: 0 0 auto; margin-left: auto; }
+    .sync-nudge button { margin: 0; padding: .45rem .85rem; font-size: .85rem; line-height: 1; }
+    @media (pointer: coarse) { .sync-nudge button { min-height: 44px !important; } }
 </style>
 </head>
 
@@ -2523,6 +2550,14 @@
       <div class="dlg-actions">
         <button type="button" id="syncRunBtn">지금 동기화</button>
       </div>
+    </article>
+  </dialog>
+
+  <!-- 연결 링크로 들어왔을 때. 되돌릴 수 없는 합치기라 반드시 한 번 묻는다. -->
+  <dialog id="joinDlg">
+    <article>
+      <header><strong>기기를 연결할까요?</strong></header>
+      <div id="joinBody"></div>
     </article>
   </dialog>
 
@@ -2789,6 +2824,8 @@
 
     // 모달 편집 임시 상태
     let draftDone = [];
+    // 편집창을 연 순간의 그 작품 상태. 저장할 때 서버발 변경이 끼어들었는지 본다.
+    let editBase = null;
     let draftSessions = [];   // [{date, hours}]
 
     const $ = (id) => document.getElementById(id);
@@ -2844,10 +2881,17 @@
     }
 
     // 예방+탐지: 저장 실패를 조용히 넘기지 않고 즉시 잡아 대응
+    // 마지막으로 '진짜 저장에 성공한' 상태. 저장이 실패하면 여기로 되돌린다 —
+    // 안 그러면 메모리와 화면만 바뀐 채 남아서, 새로고침하면 사라지는데
+    // 사용자는 저장된 줄 알고 있게 된다.
+    let lastGoodRaw = null;
+    try { lastGoodRaw = localStorage.getItem(KEY); } catch {}   // 첫 저장이 실패해도 되돌릴 곳
+
     function save() {
       try {
         const raw = JSON.stringify(items);
         localStorage.setItem(KEY, raw);
+        lastGoodRaw = raw;
         lastSaveOk = true;
         autoSnapshot(raw);          // 직전 상태를 한 벌 더 남긴다 (사용자 개입 없음)
         writeToFile(raw);           // 연결된 파일이 있으면 거기에도 (실패해도 본 저장엔 영향 없음)
@@ -2855,6 +2899,10 @@
         return true;
       } catch (e) {
         lastSaveOk = false;
+        // 화면이 거짓말하지 않게 직전 상태로 되돌린다.
+        if (lastGoodRaw !== null) {
+          try { items = JSON.parse(lastGoodRaw); renderAll(); } catch {}
+        }
         onStorageFull();
         try { renderSafety(); } catch {}
         return false;
@@ -2883,7 +2931,17 @@
     // 링크를 눌러도 아무 일이 안 생기므로, 거기선 뷰어에게 파일을 건네는 통로로 간다.
     async function exportBackup() {
       const name = `dot-log-${todayISO()}.json`;
-      const raw = JSON.stringify(items, null, 2);
+      // 기록만 담으면, 브라우저 데이터를 지운 사람은 이 파일이 있어도
+      // 클라우드에 있는 제 기록으로 못 돌아간다(키가 그 기기에만 있었으니).
+      // 그래서 키도 같이 넣는다 — 이 파일은 남에게 주는 물건이 아니다.
+      const raw = JSON.stringify({
+        _: "DOT-LOG 백업 — 이 파일에는 동기화 키가 들어 있습니다. 남에게 주지 마세요.",
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        syncKey: syncKey() || null,
+        syncUrl: syncKey() ? syncUrl() : null,
+        items,
+      }, null, 2);
       try {
         const dl = await window.claude?.use?.("downloads");
         if (dl) { await dl.save({ filename: name, data: raw }); backupDone(); return; }
@@ -3106,7 +3164,7 @@
       item.sessions.sort((a, b) => a.date.localeCompare(b.date));
       item.hours = sessionsTotal(item.sessions);
       if (item.status === "planned") item.status = "progress";
-      item.updatedAt = Date.now();
+      item.updatedAt = safeNow();
     }
     // 완성 축하 순간에 별점 물어보기 (레드팀: 감정 피크에서 안 물어봄)
     function showRatingToast(item) {
@@ -3120,7 +3178,7 @@
         b.type = "button"; b.className = "toast-star"; b.textContent = "★"; b.dataset.v = v;
         b.onclick = () => {
           const it = items.find((x) => x.id === item.id);
-          if (it) { it.rating = v; it.updatedAt = Date.now(); save(); renderAll(); }
+          if (it) { it.rating = v; it.updatedAt = safeNow(); save(); renderAll(); }
           t.classList.remove("show"); showToast(`만족도 ${"★".repeat(v)} 저장했어요`);
         };
         wrap.appendChild(b);
@@ -3486,7 +3544,45 @@
       showToast("예시 3개는 치웠어요 · 이제 내 기록만 보여요");
     }
 
-    function renderAll() { retireExamples(); renderStats(); renderGrid(); animateBars(); if (view === "album") renderAlbum(); renderSafety(); }
+    // 동기화는 기본으로 켜지 않는다. 계정도 로그인도 없는 앱이라 사용자는
+    // "내 기기에만 있는 메모장"으로 받아들인다 — 말없이 서버로 올리면 그 기대를 배신한다.
+    // 대신 기록이 실제로 쌓여서 '잃으면 아까운 것'이 됐을 때 한 번 물어본다.
+    const NUDGE_K = "dp-sync-nudge";      // 0=아직, 1=본 적 있음
+    function renderSyncNudge() {
+      const host = document.querySelector("main.container");
+      const mine = items.filter((i) => !i.sample).length;
+      let el = $("syncNudge");
+      let seen = true;
+      try { seen = !!localStorage.getItem(NUDGE_K); } catch {}
+      if (seen || syncOn() || mine < 2) { if (el) el.remove(); return; }
+      if (el) return;
+      el = document.createElement("div");
+      el.id = "syncNudge";
+      el.className = "sync-nudge";
+      el.innerHTML = `
+        <span class="sn-text">
+          <b>기록 ${mine}개가 이 기기에만 있어요</b>
+          <small>브라우저 데이터를 지우거나 기기를 바꾸면 사라집니다.
+          다른 기기와 맞춰 두면 한쪽이 없어져도 남아요.</small>
+        </span>
+        <span class="sn-act">
+          <button type="button" id="snYes">켜기</button>
+          <button type="button" id="snNo" class="secondary">나중에</button>
+        </span>`;
+      host.insertBefore(el, host.firstChild);
+      $("snYes").onclick = () => {
+        try { localStorage.setItem(NUDGE_K, "1"); } catch {}
+        el.remove();
+        $("btnSync").click();
+      };
+      $("snNo").onclick = () => {
+        try { localStorage.setItem(NUDGE_K, "1"); } catch {}
+        el.remove();
+        showToast("⋯ 메뉴에서 언제든 켤 수 있어요");
+      };
+    }
+
+    function renderAll() { retireExamples(); renderStats(); renderGrid(); animateBars(); if (view === "album") renderAlbum(); renderSafety(); renderSyncNudge(); }
 
     // ---------- 나의 컬렉션 ----------
     let view = localStorage.getItem("dp-view") || "list";
@@ -3897,6 +3993,7 @@
       $("f_photo").dataset.b64 = ""; $("f_photo").value = ""; $("f_photo_cam").value = "";
       renderPhotoUI();
       draftDone = [];
+      editBase = null;
       draftSessions = [];
       $("f_sessDate").value = todayISO(); $("f_sessHours").value = "";
 
@@ -3933,6 +4030,7 @@
           applyPresetUI(item.grid.cols, item.grid.rows);
           $("f_order").value = item.grid.order || "snake";
           draftDone = (item.done || []).slice();
+          editBase = { id: item.id, updatedAt: item.updatedAt || 0, done: (item.done || []).slice() };
           const hasSched = !!(item.schedule && item.schedule.start);
           setSched(hasSched);
           setSchedMode("perday");
@@ -4143,7 +4241,8 @@
     // 저장
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-      const id = $("f_id").value, now = Date.now();
+      const id = $("f_id").value, now = safeNow();
+      let conflictMsg = "";        // 다른 기기 변경과 겹쳤을 때 대신 띄울 말
       const useGrid = $("f_useGrid").checked;
 
       const base = {
@@ -4179,13 +4278,35 @@
 
       if (id) {
         const idx = items.findIndex((i) => i.id === id);
+        // 편집창을 열어둔 사이 다른 기기의 변경이 들어왔는지 본다.
+        // 칸은 '붙였다'는 사실이라 양쪽을 합치는 게 맞다 — 한쪽에서 붙인 걸
+        // 다른 쪽 화면이 낡았다는 이유로 지우면 안 된다.
+        if (idx > -1 && editBase && editBase.id === id
+            && (items[idx].updatedAt || 0) !== editBase.updatedAt) {
+          const theirs = items[idx].done;
+          if (Array.isArray(theirs) && Array.isArray(base.done)) {
+            let added = 0;
+            for (let k = 0; k < base.done.length; k++) {
+              // 내가 창을 연 뒤로 저쪽이 새로 붙인 칸만 살린다
+              if (theirs[k] && !editBase.done[k] && !base.done[k]) { base.done[k] = true; added++; }
+            }
+            if (added) {
+              const dc = base.done.filter(Boolean).length, total = base.done.length;
+              base.progress = total ? Math.round(dc / total * 100) : 0;
+              if (dc >= total && total > 0) base.status = "done";
+            }
+            conflictMsg = added
+              ? `저장했어요 ✓ · 다른 기기에서 붙인 ${added}칸도 같이 넣었어요`
+              : "저장했어요 ✓ · 이 작품은 다른 기기에서도 바뀌었어요";
+          }
+        }
         // 편집하면 '내 것'이 됨(예시 플래그 해제) — 편집본이 나중에 지워지는 회귀 방지
         if (idx > -1) items[idx] = { ...items[idx], ...base, sample: false, updatedAt: now };
       } else {
         items.push({ id: uid(), ...base, createdAt: now, updatedAt: now });
       }
       const ok = save(); renderAll(); closeDialog();
-      if (ok) showToast("저장했어요 ✓");   // 시스템 상태 가시성(정상 저장 피드백)
+      if (ok) showToast(conflictMsg || "저장했어요 ✓");   // 시스템 상태 가시성(정상 저장 피드백)
     });
 
     // ---------- 카드 이벤트 위임 ----------
@@ -4221,7 +4342,7 @@
             const it = items.find((x) => x.id === item.id); if (!it || !it.sessions) return;
             const s = it.sessions.find((x) => x.date === todayISO());
             if (s) { s.hours = +(s.hours - h).toFixed(1); if (s.hours <= 0) it.sessions = it.sessions.filter((x) => x !== s); }
-            it.hours = sessionsTotal(it.sessions); it.updatedAt = Date.now(); save(); renderAll(); showToast("되돌렸어요");
+            it.hours = sessionsTotal(it.sessions); it.updatedAt = safeNow(); save(); renderAll(); showToast("되돌렸어요");
           };
           showToast(`오늘 +${fmtHours(h)} · 총 ${fmtHours(item.hours)} ✨`, { actionLabel: "되돌리기", onAction: undo, duration: 3500 });
         }
@@ -4236,7 +4357,7 @@
           const nat = +t.dataset.nat;
           item.done[nat] = !item.done[nat];
           const justFilled = item.done[nat];
-          syncStatusFromCells(item); item.updatedAt = Date.now();
+          syncStatusFromCells(item); item.updatedAt = safeNow();
           save(); renderAll();
           // 표현만: 다시 그려진 뒤 그 칸을 찾아 필름 애니메이션을 건다
           requestAnimationFrame(() => {
@@ -4245,7 +4366,7 @@
             el.classList.add(justFilled ? "peel-off" : "peel-on");
             el.addEventListener("animationend", () => el.classList.remove("peel-off", "peel-on"), { once: true });
           });
-          const undo = () => { const it = items.find((x) => x.id === item.id); if (!it) return; it.done[nat] = false; syncStatusFromCells(it); it.updatedAt = Date.now(); save(); renderAll(); showToast("되돌렸어요"); };
+          const undo = () => { const it = items.find((x) => x.id === item.id); if (!it) return; it.done[nat] = false; syncStatusFromCells(it); it.updatedAt = safeNow(); save(); renderAll(); showToast("되돌렸어요"); };
           if (item.status === "done" && !wasDone) onPieceComplete(item, undo);
           else if (justFilled) celebrate("small", null, undo);
           // ★취소했을 때 아무 반응이 없으면 "안 눌렸나?" 싶어 한 번 더 누르게 된다.
@@ -4260,9 +4381,9 @@
         const cur = item && currentNat(item);
         if (item && cur != null) {
           const wasDone = item.status === "done";
-          item.done[cur] = true; syncStatusFromCells(item); item.updatedAt = Date.now();
+          item.done[cur] = true; syncStatusFromCells(item); item.updatedAt = safeNow();
           save(); renderAll();
-          const undo = () => { const it = items.find((x) => x.id === item.id); if (!it) return; it.done[cur] = false; syncStatusFromCells(it); it.updatedAt = Date.now(); save(); renderAll(); showToast("되돌렸어요"); };
+          const undo = () => { const it = items.find((x) => x.id === item.id); if (!it) return; it.done[cur] = false; syncStatusFromCells(it); it.updatedAt = safeNow(); save(); renderAll(); showToast("되돌렸어요"); };
           if (item.status === "done" && !wasDone) onPieceComplete(item, undo);
           else celebrate("small", null, undo);
         }
@@ -4549,13 +4670,28 @@
     const syncKey = () => localStorage.getItem(SYNC_KEY_K) || "";
     const syncOn = () => !!(syncUrl() && syncKey());
 
+    // 기기 시계는 몇 분씩 틀린다. 그런데 병합은 updatedAt 이 큰 쪽이 이기는 규칙이라,
+    // 한 기기가 10분 빠르면 그 기기 편집이 늘 이기고 반대쪽 편집은 늘 진다.
+    // 동기화할 때마다 서버 시각과의 차이를 재 두고, 기록에 찍는 시각은 그걸 보정해서 쓴다.
+    const SKEW_K = "dp-clock-skew";
+    let clockSkew = (() => { try { return +localStorage.getItem(SKEW_K) || 0; } catch { return 0; } })();
+    const safeNow = () => Date.now() + clockSkew;
+    function noteServerTime(t) {
+      if (!t) return;
+      const skew = t - Date.now();
+      // 왕복 지연(수백 ms)까지 쫓아가면 값이 출렁인다. 의미 있는 차이일 때만 갱신한다.
+      if (Math.abs(skew - clockSkew) < 2000) return;
+      clockSkew = skew;
+      try { localStorage.setItem(SKEW_K, String(skew)); } catch {}
+    }
+
     function newSyncKey() {
       const a = new Uint8Array(18); crypto.getRandomValues(a);
       return [...a].map((b) => b.toString(36).padStart(2, "0")).join("").slice(0, 32);
     }
     function readTomb() { try { return JSON.parse(localStorage.getItem(TOMB_K)) || {}; } catch { return {}; } }
     function tombstone(id) {
-      const t = readTomb(); t[id] = Date.now();
+      const t = readTomb(); t[id] = safeNow();
       try { localStorage.setItem(TOMB_K, JSON.stringify(t)); } catch {}
     }
 
@@ -4611,8 +4747,14 @@
       syncTimer = setTimeout(() => syncNow(false), 3000);
     }
 
+    // 편집창이 열려 있는 동안은 배경 동기화를 미룬다.
+    // 창을 열 때 뜬 값으로 폼이 채워져 있는데 그 밑에서 items 가 통째로 바뀌면,
+    // 저장하는 순간 낡은 폼이 새 updatedAt 을 달고 남의 최신 편집을 이긴다.
+    const dialogOpen = () => !!(dlg && dlg.open);
+
     async function syncNow(manual) {
       if (!syncOn() || syncing) return;
+      if (!manual && dialogOpen()) { syncSoon(); return; }   // 편집 끝나고 다시 온다
       syncing = true;
       try {
         const mine = items.filter((i) => !i.sample);     // 예시는 내 기록이 아니다
@@ -4623,6 +4765,7 @@
         });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `서버 응답 ${res.status}`);
         const doc = await res.json();
+        noteServerTime(doc.serverTime);
 
         const merged = mergeItems(mine, doc.items || [], doc.tomb || {});
         const changed = JSON.stringify(merged) !== JSON.stringify(mine);
@@ -4647,6 +4790,14 @@
       } finally { syncing = false; }
     }
 
+    // 지하철·엘리베이터에서 online 은 몇 초 사이 서너 번 튄다. 눌러 두었다 한 번만 돈다.
+    // 우리 POST 는 '보내면서 받아서 합치는' 한 번짜리라, 복귀했을 때 따로 당길 필요가 없다.
+    let onlineTimer = null;
+    window.addEventListener("online", () => {
+      clearTimeout(onlineTimer);
+      onlineTimer = setTimeout(() => { if (syncOn() && !dialogOpen()) syncNow(false); }, 2000);
+    });
+
     const SITE_URL = "https://leetaehwa1112.github.io/dot-log/";
     function joinLink() { return `${SITE_URL}?sync=${encodeURIComponent(syncKey())}`; }
 
@@ -4655,11 +4806,15 @@
       const at = +localStorage.getItem(SYNC_AT_K) || 0;
       el.innerHTML = `
         <p style="margin:0 0 .9rem;font-size:.92rem;line-height:1.5">
-          다른 기기에서도 같은 기록을 보려면 <b>연결 링크를 자기 자신에게 보내고</b>,
-          그 기기에서 열기만 하면 됩니다. 옮겨 적을 것은 없어요.
+          <b>내 다른 기기</b>에서도 같은 기록을 보려면, 아래 링크를 <b>나 자신에게</b> 보내고
+          그 기기에서 열면 됩니다. 옮겨 적을 것은 없어요.
+        </p>
+        <p class="fld-hint" style="margin:-.5rem 0 .9rem">
+          ⚠️ 이 링크는 <b>내 기기끼리 잇는 열쇠</b>입니다. 남에게 주면 그 사람 기록과 내 기록이
+          한곳에 섞이고 되돌릴 수 없어요. 앱을 권할 때는 링크가 아니라 앱 주소를 알려주세요.
         </p>
         <div class="nudge" style="display:flex;gap:6px;flex-wrap:wrap">
-          <button type="button" id="s_share">연결 링크 보내기</button>
+          <button type="button" id="s_share">내 다른 기기로 보내기</button>
           <button type="button" id="s_copy" class="secondary">링크 복사</button>
         </div>
         ${(() => {
@@ -4693,6 +4848,15 @@
             <input type="text" id="s_key" value="${escapeHtml(syncKey())}" />
             <small class="fld-hint">이 키를 아는 사람은 기록을 볼 수 있어요.</small>
             <button type="button" id="s_save" class="secondary" style="margin-top:.6rem">저장</button>
+            <hr style="margin:1rem 0;opacity:.25" />
+            <label class="fld-label">서버에서 지우기</label>
+            <small class="fld-hint">
+              이 보관함의 기록을 서버에서 지웁니다. <b>이 기기의 기록은 그대로 남습니다.</b>
+              되돌릴 수 없어요.
+            </small>
+            <button type="button" id="s_wipe" class="secondary" style="margin-top:.6rem">
+              클라우드 기록 지우기
+            </button>
           </div>
         </details>`;
 
@@ -4709,6 +4873,19 @@
         localStorage.setItem(SYNC_KEY_K, $("s_key").value.trim() || newSyncKey());
         renderSyncPanel(); showToast("저장했어요");
       };
+      $("s_wipe").onclick = async () => {
+        if (!syncKey()) { showToast("연결된 보관함이 없어요"); return; }
+        if (!confirm("서버에 있는 기록을 지웁니다.\n\n이 기기의 기록은 그대로 남지만, 다른 기기에서 받아갈 것은 없어집니다.\n되돌릴 수 없어요. 지울까요?")) return;
+        try {
+          const res = await fetch(`${syncUrl()}/v1/${encodeURIComponent(syncKey())}`, { method: "DELETE" });
+          if (!res.ok) throw new Error(`서버 응답 ${res.status}`);
+          // 묘비도 같이 비운다 — 안 그러면 다음 업로드가 옛 삭제 표시를 다시 올린다
+          try { localStorage.removeItem(TOMB_K); localStorage.removeItem(SYNC_AT_K); } catch {}
+          showToast("서버에서 지웠어요 · 이 기기 기록은 그대로예요");
+          renderSyncPanel();
+        } catch (e) { showToast(`지우지 못했어요: ${e.message}`); }
+      };
+
       async function copyLink() {
         try { await navigator.clipboard.writeText(link); showToast("링크를 복사했어요"); }
         catch { prompt("이 링크를 다른 기기에서 여세요", link); }
@@ -4815,13 +4992,53 @@
     // 키를 사람이 옮겨 적게 하지 않는 게 요점이다 — 링크만 자기 자신에게 보내면 끝난다.
     (function joinByLink() {
       const q = new URLSearchParams(location.search);
-      const k = q.get("sync");
+      const k = (q.get("sync") || "") || (new URLSearchParams(location.hash.replace(/^#/, "")).get("sync") || "");
+      // 주소창에서는 무조건 지운다 — 눌러본 것만으로 키가 기록·공유에 남지 않게.
+      const scrub = () => {
+        q.delete("sync");
+        const h = location.hash.replace(/^#/, "");
+        const hq = new URLSearchParams(h); hq.delete("sync");
+        const hs = hq.toString();
+        history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + (hs ? "#" + hs : ""));
+      };
       if (!k || !/^[A-Za-z0-9_-]{16,96}$/.test(k)) return;
-      localStorage.setItem(SYNC_KEY_K, k);
-      if (!localStorage.getItem(SYNC_URL_K)) localStorage.setItem(SYNC_URL_K, SYNC_URL_DEFAULT);
-      q.delete("sync");
-      history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash);
-      setTimeout(() => { syncNow(true); }, 500);
+      scrub();
+
+      const already = syncKey();
+      if (already === k) return;                 // 같은 키면 할 얘기가 없다
+
+      // 여기서 바로 합치면 안 된다. 이 링크가 남에게 전달됐을 수도 있고,
+      // 그 사람 기기에 이미 자기 기록이 있으면 두 사람 기록이 한 곳에 섞인다.
+      // 서버에는 지우는 길이 없어서 되돌릴 수도 없다. 그래서 반드시 물어본다.
+      const mine = items.filter((i) => !i.sample).length;
+      const body = $("joinBody");
+      body.innerHTML = `
+        <p style="margin:0 0 .9rem;line-height:1.55">
+          이 링크는 <b>어떤 기기의 기록 보관함</b>으로 연결합니다.
+          <b>본인의 다른 기기</b>에서 열었을 때만 눌러주세요.
+        </p>
+        ${mine ? `
+        <div class="join-warn">
+          <b>이 기기에 이미 기록 ${mine}개가 있어요.</b>
+          <small>연결하면 그 ${mine}개가 상대편 보관함으로 함께 올라가고, 양쪽이 하나로 합쳐집니다.
+          남이 보낸 링크라면 서로의 기록이 섞이고 <b>되돌릴 수 없습니다.</b></small>
+        </div>` : `
+        <p class="fld-hint" style="margin:0 0 .9rem">
+          이 기기에는 아직 내 기록이 없어요. 연결하면 보관함의 기록을 받아옵니다.
+        </p>`}
+        <div class="nudge" style="display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" id="joinYes">내 기기가 맞아요 · 연결</button>
+          <button type="button" id="joinNo" class="secondary">연결하지 않기</button>
+        </div>`;
+      const dlgEl = $("joinDlg");
+      $("joinYes").onclick = () => {
+        localStorage.setItem(SYNC_KEY_K, k);
+        if (!localStorage.getItem(SYNC_URL_K)) localStorage.setItem(SYNC_URL_K, SYNC_URL_DEFAULT);
+        dlgEl.close();
+        syncNow(true);
+      };
+      $("joinNo").onclick = () => { dlgEl.close(); showToast("연결하지 않았어요 · 이 기기 기록은 그대로예요"); };
+      dlgEl.showModal();
     })();
 
     const MODE_CYCLE = { auto: "light", light: "dark", dark: "auto" };
@@ -4846,12 +5063,26 @@
       const reader = new FileReader();
       reader.onload = (ev) => {
         try {
-          const data = JSON.parse(ev.target.result);
-          if (!Array.isArray(data)) throw new Error();
-          if (confirm(`${data.length}개의 기록을 불러올까요? 현재 목록에 추가됩니다.`)) {
+          const parsed = JSON.parse(ev.target.result);
+          // 옛 백업은 배열 그대로였고, 새 백업은 키까지 담은 객체다. 둘 다 받는다.
+          const list = Array.isArray(parsed) ? parsed
+                     : Array.isArray(parsed && parsed.items) ? parsed.items : null;
+          if (!list) throw new Error();
+          if (confirm(`${list.length}개의 기록을 불러올까요? 현재 목록에 추가됩니다.`)) {
             const existing = new Set(items.map((i) => i.id));
-            data.forEach((d) => { if (!existing.has(d.id)) items.push(d); });
+            list.forEach((d) => { if (d && d.id && !existing.has(d.id)) items.push(d); });
             save(); try { localStorage.setItem(BACKUP_KEY, String(Date.now())); } catch {} renderAll();
+          }
+          // 백업에 동기화 키가 들어 있고 이 기기 것과 다르면, 되살릴지 따로 묻는다.
+          // 기록을 되돌리는 것과 '어느 보관함에 연결할지'는 다른 결정이라 함께 묻지 않는다.
+          const k = parsed && parsed.syncKey;
+          if (k && /^[A-Za-z0-9_-]{16,96}$/.test(k) && k !== syncKey()) {
+            if (confirm("이 백업에 동기화 키가 들어 있어요.\n이 기기를 그 보관함에 다시 연결할까요?\n\n(연결하면 이 기기의 기록도 그쪽으로 함께 올라갑니다)")) {
+              localStorage.setItem(SYNC_KEY_K, k);
+              if (parsed.syncUrl) localStorage.setItem(SYNC_URL_K, parsed.syncUrl);
+              showToast("동기화를 다시 연결했어요");
+              syncNow(true);
+            }
           }
         } catch { alert("이 파일은 읽을 수 없어요.\nDOT-LOG에서 «백업 내려받기»로 만든 .json 파일인지 확인해 주세요.\n기존 기록은 그대로 있습니다."); }
         e.target.value = "";

@@ -2,10 +2,12 @@
  * 설치한 뒤에는 인터넷이 없어도 떠야 한다.
  *
  * 앱 껍데기(문서·카탈로그·아이콘)는 설치할 때 받아 두고, 그다음부터는 캐시에서 먼저 준다.
- * 새 판이 올라오면 뒤에서 받아 두었다가 다음에 열 때 갈아끼운다 —
- * 쓰고 있는 도중에 화면이 바뀌면 그게 더 성가시다.
+ * 새 판이 올라오면 skipWaiting()+clients.claim() 으로 바로 갈아끼운다.
+ * 옛 껍데기를 붙들고 있으면 고친 것이 사용자에게 도달을 안 한다 —
+ * 실제로 v1 을 안 올려서 배포가 한 번 헛돌았다.
+ * 단 문서는 cache-first 라, 화면에 반영되는 건 다음 번 열 때다.
  */
-const V = "dotlog-v3";   // 올릴 때마다 바꾼다 — 안 바꾸면 설치된 기기가 옛 index.html 을 계속 쓴다
+const V = "dotlog-v4";   // 올릴 때마다 바꾼다 — 안 바꾸면 설치된 기기가 옛 index.html 을 계속 쓴다
 const SHELL = ["./", "./index.html", "./products-catalog.js", "./manifest.webmanifest",
                "./icons/icon-192.png", "./icons/icon-512.png"];
 
