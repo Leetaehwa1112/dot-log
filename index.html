@@ -1329,84 +1329,36 @@
     .dotlog {
       --pitch: 7px; --dot: 6px;
       position: relative; display: inline-block; padding: var(--pitch);
-      border-radius: 10px; overflow: hidden; isolation: isolate;
     }
     .dot-canvas {
       display: grid;
       grid-template-columns: repeat(var(--cols), var(--pitch));
       grid-template-rows: repeat(var(--rows), var(--pitch));
-      /* 아직 안 붙인 자리 — 캔버스에 인쇄된 기호 칸 (스퀘어 드릴이라 칸도 네모) */
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect x='3.3' y='3.3' width='3.4' height='3.4' rx='.5' fill='%23a8a3b8' fill-opacity='.34'/%3E%3C/svg%3E");
+      /* 아직 안 놓인 자리를 남겨 둔다. 이게 이 로고의 요지다 —
+         글자가 '완성된 그림'이 아니라 '채워 가는 판'으로 읽힌다. */
+      color: var(--pico-color);
+      background-image: radial-gradient(circle at 50% 50%,
+        color-mix(in srgb, currentColor 15%, transparent) 0 1.05px, transparent 1.15px);
       background-size: var(--pitch) var(--pitch);
     }
 
-    /* 한 알 = 스퀘어 드릴. 윗면이 네 빗면으로 갈라져 X 자 능선을 만든다 —
-       실제 각진 드릴을 위에서 봤을 때 보이는 그 무늬. */
+    /* 한 알. 깎은 면도 광택도 그라데이션도 없다 — 위에서 본 스퀘어 드릴 한 알,
+       그냥 납작한 사각이다. 장식을 걷어내야 글자가 보이고, 글자가 보여야 로고가 된다. */
     .dot-canvas i {
-      width: var(--dot); height: var(--dot); border-radius: 1.2px;
-      place-self: center;
-      background:
-        conic-gradient(from 45deg,
-          rgba(255,255,255,.46) 0deg 90deg,
-          rgba(255,255,255,.10) 90deg 180deg,
-          rgba(8,2,24,.32) 180deg 270deg,
-          rgba(255,255,255,.22) 270deg 360deg),
-        linear-gradient(152deg, var(--rasp-500), var(--lav-400) 66%, #9f7cf7);
-      box-shadow:
-        inset 0 0 0 .5px rgba(255,255,255,.44),
-        inset 0 -1px 1.5px rgba(40,10,60,.34),
-        0 1px 1.5px rgba(20,8,40,.28),
-        /* 어두운 무대 위에서 젬이 빛을 머금은 것처럼 — 글자 획을 또렷하게 만든다 */
-        0 0 6px color-mix(in srgb, var(--rasp-500) 42%, transparent);
-      opacity: .7; transform: scale(.55) rotate(-14deg);
-      animation: dotPlace 9s var(--ease, cubic-bezier(.16,1,.3,1)) infinite;
+      width: var(--dot); height: var(--dot); border-radius: 1px;
+      place-self: center; background: var(--pico-color);
+      opacity: 0; transform: scale(.35);
+      animation: dotIn .4s cubic-bezier(.16, 1, .3, 1) both;
       animation-delay: var(--d);
-      will-change: transform, opacity;
     }
-    :root:not([data-theme="dark"]) .dot-canvas i {
-      box-shadow:
-        inset 0 0 0 .5px rgba(255,255,255,.5),
-        inset 0 -1px 1.5px rgba(90,40,110,.26),
-        0 1px 2px rgba(90,60,120,.22);
-    }
+    /* 색은 딱 한 군데. 가운데 이음표 세 알이다 —
+       글자가 아닌 유일한 자리라, 여기에만 색을 주면 실수가 아니라 표식으로 읽힌다. */
+    .dot-canvas i.mark { background: var(--brand); }
+    @keyframes dotIn { to { opacity: 1; transform: none; } }
 
-    /* 한 알이 놓였다가 다시 빈 자리로 돌아가는 순환.
-       ★opacity 를 0 까지 내리지 않는다 — 0 으로 내리면 로고가 통째로 비는 순간이 생긴다.
-       빈 자리도 .15 로 남겨 두면 글자는 늘 읽히고, 채워지는 파도만 왼쪽에서 오른쪽으로 지나간다. */
-    /* 저점이 .15 였다. 배경 #0e1526 위에서 대비가 1.19:1 — 사실상 안 보인다.
-       로고는 규정상 대비 면제지만 안 읽히면 브랜드가 아니다.
-       계산해 보니 이 색 조합에서 3:1 을 넘기는 최소 투명도가 0.64 여서,
-       여유를 두고 .7 로 잡았다(3.4:1). 놓이는 맛은 크기와 회전이 내고,
-       투명도는 읽히는 선 아래로 안 내려간다. */
-    @keyframes dotPlace {
-      0%        { opacity: .7; transform: scale(.55) rotate(-14deg); }
-      5%        { opacity: 1;  transform: scale(1.16) rotate(4deg); }
-      9%, 70%   { opacity: 1;  transform: scale(1) rotate(0deg); }
-      86%, 100% { opacity: .7; transform: scale(.55) rotate(-14deg); }
-    }
-
-    /* 다 찍힌 글자 위를 주기적으로 훑고 지나가는 빛 */
-    .dot-sweep {
-      position: absolute; inset: 0; z-index: 2; pointer-events: none;
-      background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,.5) 50%, transparent 60%);
-      opacity: 0; transform: translateX(-130%);
-      animation: dotSweep 6.5s ease-in-out infinite; animation-delay: 2.4s;
-      mix-blend-mode: screen;
-    }
-    @keyframes dotSweep {
-      0%        { opacity: 0; transform: translateX(-130%); }
-      6%        { opacity: .95; }
-      22%, 100% { opacity: 0; transform: translateX(130%); }
-    }
-    :root:not([data-theme="dark"]) .dot-sweep {
-      mix-blend-mode: normal;
-      background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,.8) 50%, transparent 60%);
-    }
-
-    /* 움직임을 줄여달라고 한 사용자에겐 완성된 글자를 정지 상태로 */
+    /* 한 번 찍히고 끝난다. 계속 도는 애니메이션은 로고가 아니라 배너다. */
     @media (prefers-reduced-motion: reduce) {
       .dot-canvas i { animation: none; opacity: 1; transform: none; }
-      .dot-sweep { animation: none; opacity: 0; }
     }
 
     @media (max-width: 430px) { .dotlog { --pitch: 5.4px; --dot: 4.6px; } }
@@ -1546,20 +1498,6 @@
         color-mix(in srgb, var(--gold) 58%, transparent) 58%,
         color-mix(in srgb, var(--gold) 58%, transparent) 94%,
         transparent 94%);
-    }
-
-    /* 로고: 크림 바탕에서 드릴이 연해 보인다 — 라이트에선 더 진하게 */
-    :root:not([data-theme="dark"]) .dot-canvas i {
-      background:
-        conic-gradient(from 45deg,
-          rgba(255,255,255,.52) 0deg 90deg,
-          rgba(255,255,255,.12) 90deg 180deg,
-          rgba(8,2,24,.26) 180deg 270deg,
-          rgba(255,255,255,.26) 270deg 360deg),
-        linear-gradient(152deg, var(--rasp-600), #7b52d6 70%, #5b3fb5);
-    }
-    :root:not([data-theme="dark"]) .dot-canvas {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect x='3.3' y='3.3' width='3.4' height='3.4' rx='.5' fill='%230d1730' fill-opacity='.18'/%3E%3C/svg%3E");
     }
 
     /* ⋯ 메뉴가 크림 위에서 거의 안 보였다 */
@@ -2042,15 +1980,22 @@
     .nh-num b { font-size: clamp(1.7rem, 1.3rem + 1.8vw, 2.4rem); font-weight: 700; letter-spacing: -0.03em; }
     .nh-num span { font-size: .92rem; font-weight: 600; color: var(--pico-muted-color); margin-left: 1px; }
 
-    /* 어디 것인지. 로고는 글자 크기에 맞춰 같이 줄어들도록 em 으로 잡는다. */
-    .nh-mark {
-      display: inline-flex; align-items: center; gap: .5em; margin-top: 12px;
-      font-size: .615rem; font-weight: 700; letter-spacing: .19em;
-      color: #c3373e;                            /* 실물 인쇄색 그대로 */
+    /* 어디 것인지 — 음반 뒷면의 레이블 크레딧처럼 조용하게 한 줄. */
+    .nh-mark { margin: 13px 0 0; font-size: .64rem; font-weight: 700; letter-spacing: .14em;
+               color: var(--pico-muted-color); }
+    /* 공식 워드마크. 알파만 남긴 이미지를 마스크로 쓰고 색은 currentColor 로 칠한다 —
+       그래야 라이트·다크 양쪽에서 같은 무게로 읽힌다. 이미지를 그냥 넣으면 한쪽에서 사라진다. */
+    .dac-wm {
+      display: block; width: 92px; aspect-ratio: 294 / 30;
+      background: currentColor; color: var(--pico-color); opacity: .6;
+      -webkit-mask-image: url("data:image/png;base64,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");
+              mask-image: url("data:image/png;base64,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");
+      -webkit-mask-repeat: no-repeat;  mask-repeat: no-repeat;
+      -webkit-mask-position: left center; mask-position: left center;
+      -webkit-mask-size: contain; mask-size: contain;
     }
-    [data-theme="dark"] .nh-mark { color: #e2707a; }
-    .nh-mark svg { width: 1.45em; height: 1.45em; flex: 0 0 auto; }
-    .nh-mark.plain { color: var(--pico-muted-color); letter-spacing: .12em; }
+    [data-theme="dark"] .dac-wm { opacity: .72; }
+    .nh-mark.plain { letter-spacing: .12em; }
 
     .flipcard {
       perspective: 1200px; cursor: pointer;
@@ -3016,8 +2961,7 @@
     <div class="dp-topbar">
       <h1 class="brand-mark">
         <span class="dotlog" role="img" aria-label="DOT-LOG — 다이아몬드 페인팅 노트">
-          <span class="dot-canvas" aria-hidden="true" style="--cols:41;--rows:7"><i style="grid-area:1/1;--d:0.000s"></i><i style="grid-area:1/2;--d:0.040s"></i><i style="grid-area:1/3;--d:0.080s"></i><i style="grid-area:1/4;--d:0.120s"></i><i style="grid-area:2/1;--d:0.013s"></i><i style="grid-area:2/5;--d:0.173s"></i><i style="grid-area:3/1;--d:0.026s"></i><i style="grid-area:3/5;--d:0.186s"></i><i style="grid-area:4/1;--d:0.000s"></i><i style="grid-area:4/5;--d:0.160s"></i><i style="grid-area:5/1;--d:0.013s"></i><i style="grid-area:5/5;--d:0.173s"></i><i style="grid-area:6/1;--d:0.026s"></i><i style="grid-area:6/5;--d:0.186s"></i><i style="grid-area:7/1;--d:0.000s"></i><i style="grid-area:7/2;--d:0.040s"></i><i style="grid-area:7/3;--d:0.080s"></i><i style="grid-area:7/4;--d:0.120s"></i><i style="grid-area:1/8;--d:0.280s"></i><i style="grid-area:1/9;--d:0.320s"></i><i style="grid-area:1/10;--d:0.360s"></i><i style="grid-area:2/7;--d:0.253s"></i><i style="grid-area:2/11;--d:0.413s"></i><i style="grid-area:3/7;--d:0.266s"></i><i style="grid-area:3/11;--d:0.426s"></i><i style="grid-area:4/7;--d:0.240s"></i><i style="grid-area:4/11;--d:0.400s"></i><i style="grid-area:5/7;--d:0.253s"></i><i style="grid-area:5/11;--d:0.413s"></i><i style="grid-area:6/7;--d:0.266s"></i><i style="grid-area:6/11;--d:0.426s"></i><i style="grid-area:7/8;--d:0.280s"></i><i style="grid-area:7/9;--d:0.320s"></i><i style="grid-area:7/10;--d:0.360s"></i><i style="grid-area:1/13;--d:0.480s"></i><i style="grid-area:1/14;--d:0.520s"></i><i style="grid-area:1/15;--d:0.560s"></i><i style="grid-area:1/16;--d:0.600s"></i><i style="grid-area:1/17;--d:0.640s"></i><i style="grid-area:2/15;--d:0.573s"></i><i style="grid-area:3/15;--d:0.586s"></i><i style="grid-area:4/15;--d:0.560s"></i><i style="grid-area:5/15;--d:0.573s"></i><i style="grid-area:6/15;--d:0.586s"></i><i style="grid-area:7/15;--d:0.560s"></i><i style="grid-area:4/19;--d:0.720s"></i><i style="grid-area:4/20;--d:0.760s"></i><i style="grid-area:4/21;--d:0.800s"></i><i style="grid-area:4/22;--d:0.840s"></i><i style="grid-area:4/23;--d:0.880s"></i><i style="grid-area:1/25;--d:0.960s"></i><i style="grid-area:2/25;--d:0.973s"></i><i style="grid-area:3/25;--d:0.986s"></i><i style="grid-area:4/25;--d:0.960s"></i><i style="grid-area:5/25;--d:0.973s"></i><i style="grid-area:6/25;--d:0.986s"></i><i style="grid-area:7/25;--d:0.960s"></i><i style="grid-area:7/26;--d:1.000s"></i><i style="grid-area:7/27;--d:1.040s"></i><i style="grid-area:7/28;--d:1.080s"></i><i style="grid-area:7/29;--d:1.120s"></i><i style="grid-area:1/32;--d:1.240s"></i><i style="grid-area:1/33;--d:1.280s"></i><i style="grid-area:1/34;--d:1.320s"></i><i style="grid-area:2/31;--d:1.213s"></i><i style="grid-area:2/35;--d:1.373s"></i><i style="grid-area:3/31;--d:1.226s"></i><i style="grid-area:3/35;--d:1.386s"></i><i style="grid-area:4/31;--d:1.200s"></i><i style="grid-area:4/35;--d:1.360s"></i><i style="grid-area:5/31;--d:1.213s"></i><i style="grid-area:5/35;--d:1.373s"></i><i style="grid-area:6/31;--d:1.226s"></i><i style="grid-area:6/35;--d:1.386s"></i><i style="grid-area:7/32;--d:1.240s"></i><i style="grid-area:7/33;--d:1.280s"></i><i style="grid-area:7/34;--d:1.320s"></i><i style="grid-area:1/38;--d:1.480s"></i><i style="grid-area:1/39;--d:1.520s"></i><i style="grid-area:1/40;--d:1.560s"></i><i style="grid-area:2/37;--d:1.453s"></i><i style="grid-area:2/41;--d:1.613s"></i><i style="grid-area:3/37;--d:1.466s"></i><i style="grid-area:4/37;--d:1.440s"></i><i style="grid-area:5/37;--d:1.453s"></i><i style="grid-area:5/39;--d:1.533s"></i><i style="grid-area:5/40;--d:1.573s"></i><i style="grid-area:5/41;--d:1.613s"></i><i style="grid-area:6/37;--d:1.466s"></i><i style="grid-area:6/41;--d:1.626s"></i><i style="grid-area:7/38;--d:1.480s"></i><i style="grid-area:7/39;--d:1.520s"></i><i style="grid-area:7/40;--d:1.560s"></i><i style="grid-area:7/41;--d:1.600s"></i></span>
-          <span class="dot-sweep" aria-hidden="true"></span>
+          <span class="dot-canvas" aria-hidden="true" style="--cols:39;--rows:7"><i style="grid-area:1/1;--d:0.000s"></i><i style="grid-area:1/2;--d:0.013s"></i><i style="grid-area:1/3;--d:0.026s"></i><i style="grid-area:1/4;--d:0.039s"></i><i style="grid-area:2/1;--d:0.000s"></i><i style="grid-area:2/5;--d:0.053s"></i><i style="grid-area:3/1;--d:0.000s"></i><i style="grid-area:3/5;--d:0.053s"></i><i style="grid-area:4/1;--d:0.000s"></i><i style="grid-area:4/5;--d:0.053s"></i><i style="grid-area:5/1;--d:0.000s"></i><i style="grid-area:5/5;--d:0.053s"></i><i style="grid-area:6/1;--d:0.000s"></i><i style="grid-area:6/5;--d:0.053s"></i><i style="grid-area:7/1;--d:0.000s"></i><i style="grid-area:7/2;--d:0.013s"></i><i style="grid-area:7/3;--d:0.026s"></i><i style="grid-area:7/4;--d:0.039s"></i><i style="grid-area:1/8;--d:0.092s"></i><i style="grid-area:1/9;--d:0.105s"></i><i style="grid-area:1/10;--d:0.118s"></i><i style="grid-area:2/7;--d:0.079s"></i><i style="grid-area:2/11;--d:0.132s"></i><i style="grid-area:3/7;--d:0.079s"></i><i style="grid-area:3/11;--d:0.132s"></i><i style="grid-area:4/7;--d:0.079s"></i><i style="grid-area:4/11;--d:0.132s"></i><i style="grid-area:5/7;--d:0.079s"></i><i style="grid-area:5/11;--d:0.132s"></i><i style="grid-area:6/7;--d:0.079s"></i><i style="grid-area:6/11;--d:0.132s"></i><i style="grid-area:7/8;--d:0.092s"></i><i style="grid-area:7/9;--d:0.105s"></i><i style="grid-area:7/10;--d:0.118s"></i><i style="grid-area:1/13;--d:0.158s"></i><i style="grid-area:1/14;--d:0.171s"></i><i style="grid-area:1/15;--d:0.184s"></i><i style="grid-area:1/16;--d:0.197s"></i><i style="grid-area:1/17;--d:0.211s"></i><i style="grid-area:2/15;--d:0.184s"></i><i style="grid-area:3/15;--d:0.184s"></i><i style="grid-area:4/15;--d:0.184s"></i><i style="grid-area:5/15;--d:0.184s"></i><i style="grid-area:6/15;--d:0.184s"></i><i style="grid-area:7/15;--d:0.184s"></i><i class="mark" style="grid-area:4/19;--d:0.237s"></i><i class="mark" style="grid-area:4/20;--d:0.250s"></i><i class="mark" style="grid-area:4/21;--d:0.263s"></i><i style="grid-area:1/23;--d:0.289s"></i><i style="grid-area:2/23;--d:0.289s"></i><i style="grid-area:3/23;--d:0.289s"></i><i style="grid-area:4/23;--d:0.289s"></i><i style="grid-area:5/23;--d:0.289s"></i><i style="grid-area:6/23;--d:0.289s"></i><i style="grid-area:7/23;--d:0.289s"></i><i style="grid-area:7/24;--d:0.303s"></i><i style="grid-area:7/25;--d:0.316s"></i><i style="grid-area:7/26;--d:0.329s"></i><i style="grid-area:7/27;--d:0.342s"></i><i style="grid-area:1/30;--d:0.382s"></i><i style="grid-area:1/31;--d:0.395s"></i><i style="grid-area:1/32;--d:0.408s"></i><i style="grid-area:2/29;--d:0.368s"></i><i style="grid-area:2/33;--d:0.421s"></i><i style="grid-area:3/29;--d:0.368s"></i><i style="grid-area:3/33;--d:0.421s"></i><i style="grid-area:4/29;--d:0.368s"></i><i style="grid-area:4/33;--d:0.421s"></i><i style="grid-area:5/29;--d:0.368s"></i><i style="grid-area:5/33;--d:0.421s"></i><i style="grid-area:6/29;--d:0.368s"></i><i style="grid-area:6/33;--d:0.421s"></i><i style="grid-area:7/30;--d:0.382s"></i><i style="grid-area:7/31;--d:0.395s"></i><i style="grid-area:7/32;--d:0.408s"></i><i style="grid-area:1/36;--d:0.461s"></i><i style="grid-area:1/37;--d:0.474s"></i><i style="grid-area:1/38;--d:0.487s"></i><i style="grid-area:2/35;--d:0.447s"></i><i style="grid-area:2/39;--d:0.500s"></i><i style="grid-area:3/35;--d:0.447s"></i><i style="grid-area:4/35;--d:0.447s"></i><i style="grid-area:5/35;--d:0.447s"></i><i style="grid-area:5/37;--d:0.474s"></i><i style="grid-area:5/38;--d:0.487s"></i><i style="grid-area:5/39;--d:0.500s"></i><i style="grid-area:6/35;--d:0.447s"></i><i style="grid-area:6/39;--d:0.500s"></i><i style="grid-area:7/36;--d:0.461s"></i><i style="grid-area:7/37;--d:0.474s"></i><i style="grid-area:7/38;--d:0.487s"></i><i style="grid-area:7/39;--d:0.500s"></i></span>
         </span>
       </h1>
       <div class="dp-utils" aria-label="데이터 관리">
@@ -4088,13 +4032,11 @@
 
       // 히어로는 뒤집지 않는다. 숫자판과 그림을 번갈아 보여주면 둘 다 반만 본다.
       // 그림 하나만 세우고, 그 위에서 바로 칸을 뗀다 — 보는 자리와 하는 자리를 합친다.
+      // 어디 것인지는 진짜 로고로 박는다. 직접 그린 도형은 비슷해 보여도 그 브랜드가 아니다.
+      // 공식 워드마크를 알파만 남겨 CSS 마스크로 쓴다 — 색은 테마를 따라가고 크기는 자유롭다.
       const brandMark = isDacBrand(now.brand)
-        ? `<span class="nh-mark" aria-label="다이아몬드아트클럽">
-             <svg viewBox="0 0 12 11" aria-hidden="true"><g fill="none" stroke="currentColor"
-                  stroke-width=".9" stroke-linejoin="round"><path d="M2.6 1h6.8l1.7 2.4L6 10 .9 3.4Z" />
-                  <path d="M.9 3.4h10.2M2.6 1 3.8 3.4M9.4 1 8.2 3.4M3.8 3.4 6 10M8.2 3.4 6 10" /></g></svg>
-             DIAMOND ART CLUB</span>`
-        : (now.brand ? `<span class="nh-mark plain">${escapeHtml(now.brand)}</span>` : "");
+        ? `<p class="nh-mark"><i class="dac-wm" role="img" aria-label="다이아몬드아트클럽"></i></p>`
+        : (now.brand ? `<p class="nh-mark plain">${escapeHtml(now.brand)}</p>` : "");
 
       $("stats").innerHTML = `
         <figure class="nowhero">
@@ -4319,13 +4261,11 @@
         const isFeature = (idx === featureIdx);
         const isFold = folded.has(i.id);
         return `<article class="dp-card ${i.status === "done" ? "is-done" : ""}${isFeature ? "" : " compact"}${isFold ? " folded" : ""}">
+          <!-- 목록 카드에는 비닐(구간 칸)을 얹지 않는다. 떼는 자리는 맨 위 히어로 하나면 된다 —
+               같은 그림이 두 군데서 반쯤 벗겨져 있으면 어느 쪽이 진짜인지 헷갈린다.
+               여기서는 그림을 그대로 보여주고, 진행은 아래 눈금 막대가 말한다. -->
           <div class="dp-thumb${ph ? "" : " no-photo"}" style="aspect-ratio:${artRatio(i)}">
-            ${thumbInner}${cellOverlay(i)}
-            ${(isFeature && i.grid && !hintDone()) ? `<div class="cell-hint" role="note">
-              <b>칸을 눌러보세요</b>
-              <span>누른 칸이 완성돼요. 다시 누르면 취소되고요.</span>
-              <button type="button" data-hint-close>알겠어요</button>
-            </div>` : ""}
+            ${thumbInner}
             <span class="dp-badge ${st.cls}">${st.label}</span>
             ${kitBox(i)}
           </div>
