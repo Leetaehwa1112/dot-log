@@ -5414,7 +5414,10 @@
 
     // 설치한 뒤 인터넷 없이도 뜨게. file:// 로 연 경우엔 등록이 안 되므로 조용히 넘어간다.
     if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+      // updateViaCache:"none" — 서비스워커 스크립트를 HTTP 캐시에서 꺼내 쓰지 않는다.
+      // GitHub Pages 가 max-age=600 을 붙여서, 이게 없으면 새 워커가 10분 늦게 잡힌다.
+      window.addEventListener("load", () =>
+        navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {}));
     }
 
     // 링크로 연결: ?sync=키 로 들어오면 그 키를 쓰고 주소창에서 지운다.

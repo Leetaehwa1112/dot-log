@@ -12,7 +12,7 @@
  *
  * 동기화 요청은 어느 쪽도 아니다. 손대지 않고 그냥 지나보낸다.
  */
-const V = "dotlog-v10";
+const V = "dotlog-v11";
 const DOC = "./index.html";
 const SHELL = ["./", DOC, "./products-catalog.js", "./manifest.webmanifest",
                "./icons/icon-192.png", "./icons/icon-512.png"];
@@ -53,7 +53,10 @@ self.addEventListener("fetch", (e) => {
       try {
         // 느린 망에서 하염없이 기다리지 않는다. 3초면 캐시를 준다.
         const res = await Promise.race([
-          fetch(req).then((r) => put(req, r)),
+          // cache:"no-cache" — 브라우저 HTTP 캐시를 건너뛰고 서버에 물어본다.
+          // 그냥 fetch 하면 Pages 의 max-age=600 때문에 10분 묵은 문서가 올 수 있다.
+          // 바뀐 게 없으면 304 로 끝나니 비용은 거의 없다.
+          fetch(req, { cache: "no-cache" }).then((r) => put(req, r)),
           new Promise((_, rej) => setTimeout(() => rej(new Error("느림")), DOC_TIMEOUT)),
         ]);
         return res;
