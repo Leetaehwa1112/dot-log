@@ -5,7 +5,7 @@
  * 새 판이 올라오면 뒤에서 받아 두었다가 다음에 열 때 갈아끼운다 —
  * 쓰고 있는 도중에 화면이 바뀌면 그게 더 성가시다.
  */
-const V = "dotlog-v1";
+const V = "dotlog-v2";   // v2: 예시 사진을 samples/ 로 분리 · 옛 껍데기를 버려야 새 index.html 이 간다
 const SHELL = ["./", "./index.html", "./products-catalog.js", "./manifest.webmanifest",
                "./icons/icon-192.png", "./icons/icon-512.png"];
 
