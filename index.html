@@ -3125,6 +3125,59 @@
       font-size: .66rem; letter-spacing: .03em; line-height: 1.7;
       color: var(--pico-muted-color);
     }
+    /* ═══ 왼쪽 기둥 = 도록의 표제면 ═══════════════════════════════════
+       오른쪽은 작품이고 왼쪽은 앱 설명이라, 나란히 두면 왼쪽이 더 싸 보인다.
+       설명하는 말을 낮추고, 대신 이 사람이 쌓아 온 숫자를 세운다.
+       ════════════════════════════════════════════════════════════════ */
+    .dp-hero { align-items: start; }
+    .hero-left { display: flex; flex-direction: column; align-items: flex-start; }
+
+    /* 부제 — 큰 제목이 아니라 로고 밑의 작은 설명줄이다 */
+    .brand-desc {
+      font-family: var(--font-ui) !important; font-weight: 700 !important;
+      font-size: .63rem !important; letter-spacing: .15em; line-height: 1.6;
+      color: var(--pico-muted-color); margin: 0 0 16px !important;
+      /* 두 줄로 끊기면 작은 라벨이 실수처럼 보인다. 한 줄로 붙인다. */
+      white-space: nowrap;
+    }
+    /* 이 앱이 무슨 말을 하는지는 이 한 덩어리가 대신한다 */
+    .hero-sub {
+      font-family: var(--font-display); font-weight: 600;
+      font-size: clamp(1.02rem, .92rem + .55vw, 1.3rem); line-height: 1.62;
+      letter-spacing: -.022em; color: var(--pico-color);
+      margin: 0 0 24px; word-break: keep-all;
+    }
+    .dp-affirm:empty { display: none; }
+    .dp-affirm { margin: 0 0 16px; font-size: .74rem; letter-spacing: .02em; }
+
+    /* 쌓아 온 숫자. 오른쪽 7/20 과 같은 언어로 세운다 */
+    .hero-last {
+      align-self: stretch; display: grid; gap: 1px;
+      margin: 0 0 22px; padding-top: 16px; border-top: 1px solid var(--hair);
+    }
+    .hl-label { font-size: .61rem; font-weight: 700; letter-spacing: .17em;
+                color: var(--pico-muted-color); }
+    .hero-last .hl-num {
+      font-family: var(--font-display); font-weight: 700; line-height: 1;
+      font-size: clamp(2.1rem, 1.5rem + 2.4vw, 3.1rem); letter-spacing: -.045em;
+      font-variant-numeric: tabular-nums; margin-top: 4px;
+      color: var(--pico-color);   /* 부모에서 물려받은 연보라가 숫자를 흐리게 했다 */
+    }
+    .hl-meta { margin-top: 6px; font-size: .67rem; letter-spacing: .04em;
+               color: var(--pico-muted-color); }
+
+    /* 주요 동작 — 분홍 판을 잉크로 바꾼다.
+       분홍이 이 화면에 두 번 나오면 둘 다 약해진다. 작품 위 '다음 칸' 하나면 된다. */
+    .hero-cta, .dp-empty-btn {
+      /* 앞 레이어의 margin:0 auto 때문에 왼쪽 기둥 가운데로 밀려 있었다 */
+      margin: 0 !important;
+      background: var(--ink) !important; color: var(--paper) !important;
+      padding: .85rem 1.7rem; font-size: .79rem; letter-spacing: .1em; font-weight: 700;
+    }
+    .hero-cta:hover, .dp-empty-btn:hover {
+      background: color-mix(in srgb, var(--ink) 84%, var(--paper)) !important;
+    }
+    .cta-plus { font-size: 1.1em; margin-right: .45em; }
 </style>
 </head>
 
@@ -4153,9 +4206,10 @@
 
     function renderHeroIntro() {
       const has = shown().some((i) => !i.sample);
-      for (const id of ["heroTitle", "heroIntro"]) {
-        const el = $(id); if (el) el.hidden = has;
-      }
+      // '다이아몬드 페인팅 노트'는 제목이 아니라 로고 밑에 붙는 부제다.
+      // 기록이 생겨도 남긴다 — 사라지면 왼쪽 기둥의 시작점이 없어진다.
+      // 접는 건 처음 온 사람에게만 필요한 설명 두 줄뿐이다.
+      const el = $("heroIntro"); if (el) el.hidden = has;
       document.body.classList.toggle("has-records", has);
     }
 
@@ -4166,8 +4220,14 @@
       const last = mine.reduce((a, b) => ((a.updatedAt || 0) > (b.updatedAt || 0) ? a : b));
       const cells = shown().reduce((t, i) => t + doneCount(i), 0);
       el.hidden = false;
-      el.innerHTML = `마지막 기록 <b>${escapeHtml(ago(last.updatedAt))}</b>` +
-                     (cells ? ` · 지금까지 <b>${cells.toLocaleString()}알</b>` : "");
+      // 한 줄로 흘리면 숫자가 문장에 묻힌다. 라벨-숫자-메타로 세워
+      // 오른쪽 히어로의 7/20 과 같은 언어로 맞춘다.
+      const when = `마지막 기록 ${escapeHtml(ago(last.updatedAt))}`;
+      el.innerHTML = cells
+        ? `<span class="hl-label">지금까지 채운 알</span>
+           <b class="hl-num">${cells.toLocaleString()}</b>
+           <span class="hl-meta">${when}</span>`
+        : `<span class="hl-meta">${when}</span>`;
     }
 
     function renderStats() {
