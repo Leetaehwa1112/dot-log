@@ -3022,7 +3022,7 @@
       font-size: .74rem; line-height: 1.55; margin: 9px 0 0; padding-left: 9px;
       border-left: 1px solid var(--hair); color: var(--pico-muted-color);
     }
-    .dp-card.folded .dp-thumb { aspect-ratio: auto; }
+    .dp-grid .dp-card.folded .dp-thumb { aspect-ratio: 1 / 1 !important; }
 
     /* 칸이 내용보다 작아질 수 있어야 한다. 1fr 은 minmax(auto,1fr) 이라
        긴 제목 한 줄이 트랙을 밀어내 격자가 화면 밖으로 넘친다(실측 380 자리에 438). */
@@ -3178,6 +3178,75 @@
       background: color-mix(in srgb, var(--ink) 84%, var(--paper)) !important;
     }
     .cta-plus { font-size: 1.1em; margin-right: .45em; }
+    /* ═══ 도판 크기를 하나로 ═══════════════════════════════════════════
+       그림 비율이 제각각이라 캡션 시작점이 카드마다 138px 씩 어긋났다(실측).
+       미술 도록은 그림 비율을 따라가지 않는다 — 판(plate) 크기를 고정하고
+       그 안에 그림을 앉힌다. 잘라내지 않고 담기만 하므로 작품도 안 상한다.
+       ════════════════════════════════════════════════════════════════ */
+    /* 앞 레이어의 .dp-card:not(.compact) .dp-thumb 가 더 구체적이라 밀렸고,
+       그림이 position:absolute 라 비율이 없으면 판이 높이 0 으로 접힌다(실측 h=0). */
+    .dp-grid .dp-card .dp-thumb {
+      aspect-ratio: 1 / 1 !important;
+      background: color-mix(in srgb, var(--pico-color) 5%, transparent);
+    }
+    .dp-card .dp-thumb > img { object-fit: contain; }
+
+    /* 캡션도 줄 수를 고정한다. 한 줄이 두 줄로 흐르면 격자가 다시 어긋난다. */
+    .dp-card h3 { -webkit-line-clamp: 2; min-height: 2.64em; }
+    .dp-card .dp-sub {
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      overflow-wrap: normal;
+    }
+    .dp-card .dp-note {
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    /* '예시' 는 칠한 상자가 아니라 작은 글자 하나면 된다 */
+    .dp-card .tag-sample {
+      background: none !important; border: 0 !important; padding: 0 !important;
+      margin-right: .45em; color: var(--pico-muted-color); opacity: .75;
+      font-size: .58rem; font-weight: 700; letter-spacing: .1em;
+    }
+    /* ═══ 레퍼런스 정렬 ════════════════════════════════════════════════
+       추론 대신 실물을 쟀다 — ooak records(민희진 현 소속사) 사이트 실측:
+         · Pretendard 한 종만. 명조를 쓰지 않는다
+         · 라벨 10.4~11.2px / 굵기 520 / 자간 0.06em
+         · 제목 16px / 700 / 자간 없음
+         · 닫기 × 40px 굵기 150 — 10px 라벨과의 극단적 크기 대비
+         · 첫 화면은 사진 전면, 글자는 아주 작게 한 줄
+       명조를 걷어내고 한 종으로 맞추되, 숫자만 크게 남겨 대비를 만든다.
+       ════════════════════════════════════════════════════════════════ */
+    .nh-id h2, .dp-card h3, .hero-sub, .nh-num, .hero-last .hl-num {
+      font-family: var(--font-ui);
+    }
+    .nh-id h2 {
+      font-size: clamp(1.02rem, .95rem + .4vw, 1.2rem); font-weight: 700;
+      letter-spacing: -.012em; line-height: 1.34;
+    }
+    .dp-card h3 { font-size: .9rem; font-weight: 700; letter-spacing: -.012em; }
+    .hero-sub { font-size: clamp(.98rem, .92rem + .35vw, 1.12rem); font-weight: 600;
+                letter-spacing: -.012em; margin-bottom: 22px; }
+    .nh-num b, .hero-last .hl-num { font-weight: 700; letter-spacing: -.035em; }
+
+    /* 작은 글자는 전부 한 규격으로 — 10.5px / 520 / 0.06em */
+    .brand-desc, .hl-label, .hl-meta, .nh-id p, .nh-mark,
+    .dp-card .dp-sub, .dp-card .pct, .dp-card .dp-card-actions button,
+    .vs-btn, .dp-chip, .sort-wrap select, .dp-foot, .trust-line, .done-peek {
+      font-size: .655rem !important; font-weight: 520 !important;
+      letter-spacing: .06em !important;
+    }
+    .brand-desc { letter-spacing: .13em !important; }
+    .vs-btn.active, .dp-chip[aria-pressed="true"] { font-weight: 700 !important; }
+    .dp-card h3, .nh-id h2 { letter-spacing: -.012em !important; }
+
+    /* 주요 동작은 분홍으로 되돌린다 — 이 화면에서 유일하게 누르는 것이라 색이 맞다 */
+    .hero-cta, .dp-empty-btn {
+      background: var(--brand) !important; color: #fff !important;
+      font-size: .78rem !important; font-weight: 700 !important; letter-spacing: .08em !important;
+    }
+    .hero-cta:hover, .dp-empty-btn:hover {
+      background: color-mix(in srgb, var(--brand) 86%, #000) !important;
+    }
 </style>
 </head>
 
@@ -3223,7 +3292,7 @@
              매일 들어와 칸을 채우는 사람에게는 화면 절반을 먹는 소음이다.
              기록이 생기면 renderHeroIntro() 가 접는다. -->
         <p class="brand-desc" id="heroTitle">다이아몬드 페인팅 노트</p>
-        <p class="hero-sub" id="heroIntro">한 알씩 붙인 만큼만 그림이 됩니다.<br>오늘 채운 칸을 여기에 남겨두세요.</p>
+        <p class="hero-sub" id="heroIntro">한 알씩 붙인 만큼만 그림이 됩니다.</p>
         <p class="dp-affirm" id="affirm"></p>
         <p class="hero-last" id="heroLast" hidden></p>
         <button id="btnAdd" class="hero-cta" aria-label="새 작품 기록">
@@ -3266,9 +3335,9 @@
     <section id="albumView" hidden></section>
 
     <footer class="dp-foot">
-      맨 위 작품의 칸을 탭하면 그 구간을 완료 처리해요 · <span id="storageStatus">기록은 이 브라우저에 자동 저장돼요.</span>
+      맨 위 작품의 칸을 눌러 채웁니다 · <span id="storageStatus">기록은 이 브라우저에 저장됩니다</span>
     </footer>
-    <p class="trust-line"><span aria-hidden="true">🔒</span> 계정 없이 이 브라우저에만 저장돼요 · 무료 · 설치 불필요</p>
+    <p class="trust-line">계정 없음 · 이 브라우저에만 저장 · 설치 불필요</p>
   </main>
 
   <!-- 등록/수정 모달 -->
@@ -4209,7 +4278,7 @@
       // '다이아몬드 페인팅 노트'는 제목이 아니라 로고 밑에 붙는 부제다.
       // 기록이 생겨도 남긴다 — 사라지면 왼쪽 기둥의 시작점이 없어진다.
       // 접는 건 처음 온 사람에게만 필요한 설명 두 줄뿐이다.
-      const el = $("heroIntro"); if (el) el.hidden = has;
+      // 한 줄이면 매일 오는 사람에게도 소음이 아니다. 접지 않고 늘 둔다.
       document.body.classList.toggle("has-records", has);
     }
 
@@ -4224,7 +4293,7 @@
       // 오른쪽 히어로의 7/20 과 같은 언어로 맞춘다.
       const when = `마지막 기록 ${escapeHtml(ago(last.updatedAt))}`;
       el.innerHTML = cells
-        ? `<span class="hl-label">지금까지 채운 알</span>
+        ? `<span class="hl-label">지금까지 채운 칸</span>
            <b class="hl-num">${cells.toLocaleString()}</b>
            <span class="hl-meta">${when}</span>`
         : `<span class="hl-meta">${when}</span>`;
@@ -4475,6 +4544,8 @@
       gridEl.innerHTML = list.map((i, idx) => {
         const st = STATUS[i.status] || STATUS.planned;
         // 위계 다이어트: 브랜드·사이즈는 한 줄, 부가정보(드릴·캔버스·시간)는 아래 옅게
+        // 한 줄에 다 넣고 넘치면 자른다. 줄바꿈을 허용하면 카드마다 캡션 높이가 달라져
+        // 격자가 어긋난다 — 도록에서 제일 먼저 눈에 걸리는 게 그 어긋남이다.
         const metaMain = [i.brand, cmOnly(i.size)].filter(Boolean).map(escapeHtml).join(" · ") || "브랜드 미기록";
         const subBits = [i.drill, i.canvas, i.difficulty && `난이도 ${i.difficulty}`].filter(Boolean);
         if (i.hours) subBits.push(fmtHours(i.hours) + " 정성");
@@ -4509,7 +4580,7 @@
           <!-- 목록 카드에는 비닐(구간 칸)을 얹지 않는다. 떼는 자리는 맨 위 히어로 하나면 된다 —
                같은 그림이 두 군데서 반쯤 벗겨져 있으면 어느 쪽이 진짜인지 헷갈린다.
                여기서는 그림을 그대로 보여주고, 진행은 아래 눈금 막대가 말한다. -->
-          <div class="dp-thumb${ph ? "" : " no-photo"}" style="aspect-ratio:${artRatio(i)}">
+          <div class="dp-thumb${ph ? "" : " no-photo"}">
             ${thumbInner}
             <span class="dp-badge ${st.cls}">${st.label}</span>
             ${kitBox(i)}
