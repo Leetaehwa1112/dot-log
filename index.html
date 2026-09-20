@@ -442,13 +442,13 @@
        "여기 와 있고 아직 안 뜯었다"가 보이게 한다. */
     .kit-box {
       position: absolute; right: 0.55rem; bottom: 0.55rem; z-index: 3;
-      width: clamp(34px, 20%, 54px); height: auto; pointer-events: none;
+      width: clamp(44px, 30%, 72px); height: auto; pointer-events: none;
       filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.3));
     }
     /* 종이 상자는 어느 테마에서나 흰 상자다. 다만 어두운 화면에서 혼자 튀지 않게 한 단계 죽인다. */
     [data-theme="dark"] .kit-box { opacity: 0.93; }
-    .dp-card.compact .kit-box { right: 1px; bottom: 1px; width: 40%; }
-    .dp-card.folded  .kit-box { width: 34%; right: 3px; bottom: 3px; }
+    .dp-card.compact .kit-box { right: 1px; bottom: 1px; width: 56%; }
+    .dp-card.folded  .kit-box { width: 46%; right: 3px; bottom: 3px; }
 
     /* 구간 격자 오버레이 */
     .dp-cellgrid { position: absolute; inset: 0; display: grid; z-index: 1; }
@@ -2405,7 +2405,8 @@
     .kit3 > svg { position: static; width: 100%; height: auto; filter: drop-shadow(0 3px 7px rgba(0,0,0,.34)); }
     /* 바닥에 닿은 자리의 그림자. 포개진 상자는 바닥이 아니라 아래 상자에 얹혀 있으니 뺀다. */
     .kit3::after {
-      content: ""; position: absolute; left: 4%; right: 4%; bottom: 4px; height: 11px;
+      content: ""; position: absolute; left: 8%; right: 8%;
+      bottom: calc(var(--w) * .03); height: 10px;
       background: radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.5), transparent 72%);
       filter: blur(4px); pointer-events: none;
     }
@@ -4093,47 +4094,64 @@
       if (item.status !== "planned") return "";
       const dac = isDacBrand(item.brand);
       const label = dac ? "뜯지 않은 다이아몬드아트클럽 상자" : "뜯지 않은 상자";
-      // 3/4 로 놓인 상자. 윗면 A(8,18) B(32,10) C(56,17) D(28,25),
-      // 앞면은 A-D 아래로, 옆면은 D-C 아래로 떨어진다.
-      const TOP = "M8 18 32 10 56 17 28 25Z";
-      const FRONT = "M8 18 28 25 28 54 8 46Z";
-      const SIDE = "M28 25 56 17 56 45 28 54Z";
-      const SEAM = "M20 14 42 21";                 // 윗면 가운데 접합선
-      // 아래쪽 굵은 띠. 실물에서 제일 먼저 눈에 들어오는 요소라 작게 줄여도 남는다.
-      const FRONT_BAND = "M8 46 28 54 28 50.2 8 42.2Z";
-      const SIDE_BAND = "M28 54 56 45 56 41.2 28 50.2Z";
+      // 실물 인쇄색은 분홍이 아니라 크림슨 레드다. 앱의 라즈베리(--brand)를 쓰면
+      // 앱 색에 섞여 '그 상자'로 안 읽힌다. 실물 색을 그대로 박아 둔다.
+      const INK = "#c3373e";
+      // 3/4 로 놓인 길쭉한 가로형 상자. 정육면체가 아니다 —
+      // 긴 축 36, 짧은 축 18, 높이 17. 윗면 네 점을 잡고 거기서 아래로 떨어뜨린다.
+      //   A(5,23.5) 왼쪽 · B(23,15.5) 뒤 · C(59,23.5) 오른쪽 · D(41,31.5) 앞
+      // 긴 면(FRONT)이 A-D, 짧은 면(SIDE)이 D-C 다.
+      const TOP = "M5 23.5 23 15.5 59 23.5 41 31.5Z";
+      const FRONT = "M5 23.5 41 31.5 41 48.5 5 40.5Z";
+      const SIDE = "M41 31.5 59 23.5 59 40.5 41 48.5Z";
+      const SEAM = "M14 19.5 50 27.5";             // 윗면 가운데 접합선 — 긴 축을 따라 간다
+      const FRONT_BAND = "M5 40.5 41 48.5 41 46.3 5 38.3Z";   // 밑단 띠
+      const SIDE_BAND = "M41 48.5 59 40.5 59 38.3 41 46.3Z";
+      // 긴 면 가운데 흰 라벨(빨간 테두리) — 실물에서 로고와 문구가 들어가는 자리.
+      // 면 좌표 (u,v) → A + u*(36,8) + v*(0,17) 로 옮긴 것.
+      const PLATE = "M12.9 28.3 33.1 32.8 33.1 43.7 12.9 39.2Z";
+      const MARK = "M20.3 34.3 25.4 35.4 26.5 36.3 23 39.9 18.9 35.1Z";  // 라벨 안 로고 다이아
+
+      const u = "kb" + String(item.id || "0").replace(/[^A-Za-z0-9_-]/g, "");
       // 무늬 정의는 상자 안에 넣는다. 문서 한 곳에 두고 끌어다 쓰면
       // 사파리에서 다른 svg 의 url(#..) 참조가 끊겨 상자가 통째로 안 그려진다.
-      // id 는 작품마다 달라야 하므로 작품 번호를 붙인다.
-      const u = "kb" + String(item.id || "0").replace(/[^A-Za-z0-9_-]/g, "");
-      // 같은 타일을 면마다 다른 기울기로 깐다. 한 장으로 깔면 세 면에
-      // 똑같이 선 무늬가 얹혀 스티커처럼 보인다. 행렬은 상자 모서리 방향 그대로다 —
-      // 윗면은 두 축이 다 눕고, 앞·옆면은 가로축만 눕고 세로는 선다.
-      const FACES = [["t", ".95 -.32 .94 .33"], ["f", ".94 .33 0 1"], ["s", ".96 -.28 0 1"]];
-      // 실물 인쇄는 잘게 반복되는 무늬가 아니라, 큰 다이아 하나를 삼각형으로
-      // 쪼갠 굵은 선 그래픽이다. 면 하나에 두 개쯤 들어가고 가장자리에서 잘린다.
-      // 테이블 4점 · 거들 5점 · 뾰족끝 하나를 잡고,
-      // 크라운은 테이블-거들을 번갈아 이어 지그재그 삼각형, 파빌리온은 거들을 끝점으로 모은다.
-      const defs = dac ? `<defs>
-        <g id="${u}g"><g fill="none" stroke="#d6336c" stroke-width="1.15"
-             stroke-linejoin="round" stroke-linecap="round" opacity=".95">
-          <path d="M4.8 2.4h6.4l4 4-7.2 8.8-7.2-8.8Z" />
-          <path d="M.8 6.4h14.4" />
-          <path d="M4.8 2.4 4.4 6.4M6.93 2.4 4.4 6.4M6.93 2.4 8 6.4M9.07 2.4 8 6.4M9.07 2.4 11.6 6.4M11.2 2.4 11.6 6.4" />
-          <path d="M4.4 6.4 8 15.2M8 6.4v8.8M11.6 6.4 8 15.2" />
-        </g></g>
-        ${FACES.map(([k, m]) => `<pattern id="${u}${k}" width="16" height="16" patternUnits="userSpaceOnUse"
-                 patternTransform="matrix(${m} 0 0)"><use href="#${u}g" /></pattern>`).join("")}
+
+      // 다이아 한 알. 폭 9.5 · 높이 8.8 · 크라운(윗부분)이 28%, 파빌리온이 72%.
+      // 이 비율이 핵심이다 — 반반으로 그리면 전혀 다른 물건이 된다.
+      // 테이블 위쪽 4점과 거들 5점을 번갈아 이어 크라운 지그재그를 만들고,
+      // 파빌리온은 거들 점들을 아래 뾰족끝 하나로 모은다.
+      const GEM = `<g id="${u}d" fill="none" stroke="${INK}" stroke-width=".55"
+             stroke-linejoin="round" stroke-linecap="round">
+        <path d="M1.29 0h6.92L9.5 2.46 4.75 8.8 0 2.46Z" />
+        <path d="M0 2.46h9.5" />
+        <path d="M1.29 0 2.12 2.46M3.47 0 2.12 2.46M3.47 0 4.75 2.46M6.03 0 4.75 2.46M6.03 0 7.38 2.46M8.21 0 7.38 2.46" />
+        <path d="M2.12 2.46 4.75 8.8M4.75 2.46V8.8M7.38 2.46 4.75 8.8" />
+      </g>`;
+      // 줄마다 반 칸씩 어긋나게 깐다. 알 높이가 8.8 인데 줄 간격을 8 로 잡았더니
+      // 위아래 알이 겹쳐 그물처럼 엉켰다 — 10.5 로 벌려 알마다 여백을 준다.
+      // 가로도 한 칸(9.5→10.5) 띄운다. 좌우 복제는 타일 경계를 넘어가는 가운뎃줄만 있으면 된다.
+      const SPOTS = [[0, 0], [-5.25, 10.5], [5.25, 10.5]];
+      const LAY = SPOTS.map(([x, y]) => `<use href="#${u}d" x="${x}" y="${y}" />`).join("");
+      // 같은 타일을 면마다 다른 기울기로 깐다. 한 장으로 깔면 세 면에 똑같이
+      // 선 무늬가 얹혀 스티커처럼 보인다. 행렬은 상자 모서리 방향 그대로다 —
+      // 긴 축 (36,8)→단위 (.976,.217), 짧은 축 (18,-8)→단위 (.914,-.406).
+      const FACES = [["t", ".976 .217 -.914 .406"], ["f", ".976 .217 0 1"], ["s", ".914 -.406 0 1"]];
+      const defs = dac ? `<defs>${GEM}
+        ${FACES.map(([k, m]) => `<pattern id="${u}${k}" width="10.5" height="21" patternUnits="userSpaceOnUse"
+                 patternTransform="matrix(${m} 0 0)">${LAY}</pattern>`).join("")}
       </defs>` : "";
+
       const body = dac
         ? `${defs}
-           <path d="${SIDE}" fill="#ece2e6" /><path d="${SIDE}" fill="url(#${u}s)" opacity=".62" />
-           <path d="${FRONT}" fill="#fdfafb" /><path d="${FRONT}" fill="url(#${u}f)" />
+           <path d="${SIDE}" fill="#f0e7e8" /><path d="${SIDE}" fill="url(#${u}s)" opacity=".6" />
+           <path d="${FRONT}" fill="#fdfbfa" /><path d="${FRONT}" fill="url(#${u}f)" />
            <path d="${TOP}" fill="#ffffff" /><path d="${TOP}" fill="url(#${u}t)" opacity=".5" />
-           <path d="${SEAM}" stroke="#d6336c" stroke-width=".9" opacity=".45" />
-           <path d="${SIDE_BAND}" fill="#d6336c" opacity=".78" />
-           <path d="${FRONT_BAND}" fill="#d6336c" />
-           <g fill="none" stroke="#d6336c" stroke-width="1.5" stroke-linejoin="round">
+           <path d="${SEAM}" stroke="${INK}" stroke-width=".8" opacity=".4" />
+           <path d="${SIDE_BAND}" fill="${INK}" opacity=".72" />
+           <path d="${FRONT_BAND}" fill="${INK}" />
+           <path d="${PLATE}" fill="#fffdfc" stroke="${INK}" stroke-width="1.1" stroke-linejoin="round" />
+           <path d="${MARK}" fill="${INK}" />
+           <g fill="none" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round">
              <path d="${SIDE}" /><path d="${FRONT}" /><path d="${TOP}" />
            </g>`
         : `<path d="${SIDE}" fill="#c9a87f" /><path d="${FRONT}" fill="#ddc2a0" /><path d="${TOP}" fill="#ead7ba" />
@@ -4141,9 +4159,8 @@
            <g fill="none" stroke="#9b7a53" stroke-width="1.3" stroke-linejoin="round">
              <path d="${SIDE}" /><path d="${FRONT}" /><path d="${TOP}" />
            </g>`;
-      return `<svg class="kit-box" viewBox="0 0 64 64" role="img" aria-label="${label}">${body}</svg>`;
+      return `<svg class="kit-box" viewBox="0 12 64 40" role="img" aria-label="${label}">${body}</svg>`;
     }
-
 
     function renderGrid() {
       const gridEl = $("grid");
@@ -4714,12 +4731,12 @@
 
       // 모셔둔 킷은 오른쪽 구석에 상자째 쌓아 둔다.
       // 세 개까지 위로 쌓고, 넘치면 그 왼쪽에 한 줄 더 만든다.
-      const KIT_CM = 40, PER_COL = 3;
+      const KIT_CM = 58, PER_COL = 3;   // 길쭉한 가로형이라 폭을 넉넉히 잡는다
       const kitPx = Math.max(26, Math.round(KIT_CM * CM * ROOM_FIT));
       const stash = stashList.slice(0, 9).map((i, k) => {
         const col = Math.floor(k / PER_COL), row = k % PER_COL;
-        const x = 76 - col * 9.5;
-        const lift = Math.round(row * kitPx * 0.52);
+        const x = 74 - col * 13;
+        const lift = Math.round(row * kitPx * 0.266);   // 옆면 높이만큼만 올라간다
         const tilt = (k % 2 ? 1 : -1) * (1.4 + row * 0.5);
         return `<figure class="kit3${row ? " stacked" : ""}" data-dex="${i.id}"
             title="${escapeHtml(i.name)} · 모셔둠"
@@ -4730,7 +4747,7 @@
       // 꼬리표는 맨 오른쪽 더미 위에 올린다 — 더미에 가리지 않게 쌓인 높이만큼 띄운다.
       const topRow = Math.min(stashList.length, PER_COL);
       const stashTag = stashList.length
-        ? `<span class="kit3-tag" style="left:76%;--lift:${Math.round((topRow - 1) * kitPx * 0.52 + kitPx * 0.82)}px"
+        ? `<span class="kit3-tag" style="left:74%;--lift:${Math.round((topRow - 1) * kitPx * 0.266 + kitPx * 0.6)}px"
                  >모셔둔 킷 ${stashList.length}</span>`
         : "";
 
