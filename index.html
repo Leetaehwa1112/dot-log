@@ -1648,12 +1648,18 @@
     /* 넷을 같은 크기로 늘어놓으면 눈이 어디에 앉을지 모른다.
        이 앱에서 보고 싶은 건 '얼마나 채웠나' 하나다 — 그것만 크게 두고
        나머지는 곁다리로 물러선다. 첫 칸이 두 칸 폭을 먹는다. */
+    /* 항목이 셋일 때도 넷일 때도 깨지지 않아야 한다. 전에는 3열로 두어서
+       '남은 날'이 있는 날만 혼자 다음 줄로 떨어져 격자가 들쭉날쭉했다.
+       주인공은 제 줄을 통째로 쓰고, 보조 지표들이 그 아래 균등하게 선다. */
     .nw-list {
-      display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: var(--s-2) var(--s-3);
-      align-items: end;
-      margin: 0 0 var(--s-4); padding-top: var(--s-4);
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: var(--s-3) var(--s-3);
+      margin: 0 0 var(--s-3); padding-top: var(--s-4);
       border-top: 1px solid color-mix(in srgb, var(--pico-muted-border-color) 70%, transparent);
     }
+    .nw-list .is-lead { grid-column: 1 / -1; }
+    /* 라벨과 값 사이 간격을 한 값으로 통일한다 — 칸마다 다르면 줄이 안 맞는다 */
+    .nw-list > div { display: grid; gap: 4px; align-content: start; }
     .nw-list dt {
       margin: 0 0 3px; font-size: .64rem; font-weight: 700; letter-spacing: .06em;
       text-transform: uppercase; color: var(--pico-muted-color); white-space: nowrap;
@@ -1664,6 +1670,8 @@
       color: color-mix(in srgb, var(--ink) 78%, transparent);
     }
     /* 주인공 */
+    .nw-list .is-lead { display: flex; align-items: baseline; gap: var(--s-3); }
+    .nw-list .is-lead dt { margin: 0; align-self: center; }
     .nw-list .is-lead dd {
       font-size: 2.4rem; font-weight: 900; letter-spacing: -0.045em;
       /* 크기(2.4rem vs 1.12rem)가 이미 주인공을 정한다. 색까지 CTA 와 같은
@@ -1688,8 +1696,14 @@
     .nw-act:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 0 var(--outline); }
     [data-theme="dark"] .nw-act { border-color: rgba(242,238,226,.3); box-shadow: 3px 3px 0 0 rgba(242,238,226,.18); }
 
-    .nw-foot { margin: 0; font-size: .72rem; font-weight: 600; letter-spacing: .03em;
-               color: var(--pico-muted-color); }
+    /* 이 줄은 '이 작품'이 아니라 '전체'에 대한 이야기라, 위 지표에 붙어 있으면
+       남은 날의 부속처럼 읽힌다. 얇은 선으로 떼어 캡션 자리로 내린다. */
+    .nw-foot {
+      margin: 0; padding-top: var(--s-3);
+      border-top: 1px solid color-mix(in srgb, var(--ink) 9%, transparent);
+      font-size: .72rem; font-weight: 600; letter-spacing: .03em;
+      color: var(--pico-muted-color);
+    }
 
     /* ── 최초 1회 힌트 ─────────────────────────────────────────────── */
     .cell-hint {
@@ -2761,6 +2775,15 @@
       .ps-item { width: 76px; height: 76px; }
       .ps-x { width: 26px !important; height: 26px !important; }
     }
+    /* 왼쪽 칸이 오른쪽 카드보다 허전해 보이던 자리. 장식이 아니라 쓸모 있는 한 줄. */
+    .hero-last {
+      margin: 0 0 var(--s-4); font-size: .84rem; line-height: 1.6;
+      color: var(--pico-muted-color);
+    }
+    .hero-last b {
+      color: var(--accent-quiet); font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
 </style>
 </head>
 
@@ -2805,6 +2828,7 @@
         <p class="brand-desc">다이아몬드 페인팅 노트</p>
         <p class="hero-sub">한 알씩 붙인 만큼만 그림이 됩니다.<br>오늘 채운 칸을 여기에 남겨두세요.</p>
         <p class="dp-affirm" id="affirm"></p>
+        <p class="hero-last" id="heroLast" hidden></p>
         <button id="btnAdd" class="hero-cta">＋ 새 작품 기록</button>
       </div>
       <section class="dp-stats" id="stats" aria-label="내 기록 요약"></section>
@@ -3753,6 +3777,31 @@
     function shown() { return items.some((i) => !i.sample) ? items.filter((i) => !i.sample) : items; }
 
     // ---------- 통계 (따뜻하게) ----------
+    /** "2시간 전" 처럼. 정확한 시각보다 '얼마 됐나'가 이 앱에서는 더 쓸모 있다. */
+    function ago(ms) {
+      const m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+      if (m < 1) return "방금";
+      if (m < 60) return `${m}분 전`;
+      const h = Math.round(m / 60);
+      if (h < 24) return `${h}시간 전`;
+      const d = Math.round(h / 24);
+      if (d < 30) return `${d}일 전`;
+      return `${Math.round(d / 30)}개월 전`;
+    }
+
+    // 왼쪽은 제목과 버튼뿐이라 오른쪽 카드에 비해 허전하다. 빈 자리를 문구로
+    // 메우는 대신, 실제로 쓸모 있는 한 줄을 둔다 — 마지막으로 손댄 게 언제인지.
+    function renderHeroLast() {
+      const el = $("heroLast"); if (!el) return;
+      const mine = shown().filter((i) => i.updatedAt);
+      if (!mine.length) { el.hidden = true; return; }
+      const last = mine.reduce((a, b) => ((a.updatedAt || 0) > (b.updatedAt || 0) ? a : b));
+      const cells = shown().reduce((t, i) => t + doneCount(i), 0);
+      el.hidden = false;
+      el.innerHTML = `마지막 기록 <b>${escapeHtml(ago(last.updatedAt))}</b>` +
+                     (cells ? ` · 지금까지 <b>${cells.toLocaleString()}알</b>` : "");
+    }
+
     function renderStats() {
       const vis = shown();
       const total = vis.length;
@@ -4280,7 +4329,7 @@
     function renderAll() {
       retireExamples(); renderStats(); renderGrid(); animateBars();
       if (view === "album") renderAlbum();
-      renderSafety(); renderSyncNudge(); renderInApp(); renderInstall(); renderInstallMenu();
+      renderSafety(); renderHeroLast(); renderSyncNudge(); renderInApp(); renderInstall(); renderInstallMenu();
       hydrateThenRedraw();
     }
 
