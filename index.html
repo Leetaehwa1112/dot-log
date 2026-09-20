@@ -2399,6 +2399,29 @@
       .sync-warn .sw-text { flex-basis: calc(100% - 1.4rem); }
       .sync-warn button { margin-left: auto; }
     }
+    /* ── 동기화 용량 게이지 ─────────────────────────────────────
+       벽에 부딪히고 나서 알면 늦다. 남은 자리를 작품 개수로도 말해준다.
+       색은 80%·90% 에서만 바뀐다 — 평소엔 조용해야 읽을 마음이 든다. */
+    .cap-gauge { display: grid; gap: .4rem; --cap: var(--brand); }
+    .cap-gauge.is-warn   { --cap: var(--warn-fg); }
+    .cap-gauge.is-danger { --cap: var(--rasp-600); }
+    [data-theme="light"] .cap-gauge.is-danger { --cap: #b3123f; }
+    .cap-head {
+      display: flex; justify-content: space-between; align-items: baseline; gap: .6rem;
+      font-size: .86rem;
+    }
+    .cap-head b { font-variant-numeric: tabular-nums; color: var(--cap); white-space: nowrap; }
+    .cap-head small { opacity: .7; font-weight: 400; }
+    .cap-bar {
+      height: 7px; border-radius: 999px; overflow: hidden;
+      background: color-mix(in srgb, var(--cap) 16%, transparent);
+    }
+    .cap-bar span {
+      display: block; height: 100%; border-radius: inherit;
+      background: var(--cap);
+      transition: width var(--dur-2) var(--ease-out);
+    }
+    @media (prefers-reduced-motion: reduce) { .cap-bar span { transition: none } }
 </style>
 </head>
 
@@ -4307,7 +4330,11 @@
         const canvas = document.createElement("canvas");
         canvas.width = width; canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        const b64 = canvas.toDataURL("image/jpeg", 0.72);
+        // 같은 화질에 WebP 가 JPEG 보다 20~25% 작다. 사진이 곧 용량이라 그만큼
+        // 더 많은 작품을 넣을 수 있다. 인코딩을 못 하는 브라우저는 조용히 PNG 를
+        // 돌려주는데(규격상) 그건 오히려 크므로, 확인해서 JPEG 로 되돌린다.
+        let b64 = canvas.toDataURL("image/webp", 0.75);
+        if (!b64.startsWith("data:image/webp")) b64 = canvas.toDataURL("image/jpeg", 0.72);
         // 탐지: 이 사진을 더하면 한도에 근접하는지 미리 경고
         if (storageBytes() + b64.length * 2 > QUOTA_WARN) showToast("⚠️ 저장공간이 얼마 안 남았어요 — 백업 후 사용하세요");
         $("f_photo").dataset.b64 = b64;
@@ -4493,6 +4520,27 @@
     // ---------- 다른 기기와 동기화 ----------
     // 계정을 만들지 않는다. 긴 '동기화 키' 하나가 주소이자 열쇠다.
     // 키를 아는 사람은 기록을 볼 수 있으므로, 키는 앱이 길게 만들어 준다.
+    // 서버가 한 사람 몫으로 받아주는 크기. D1 이 한 행에 4MB 근처에서 막히므로
+    // 그 아래로 잡아 뒀다(서버와 같은 값). 기기 쪽 localStorage 5MB 보다 먼저 차기 때문에
+    // 사용자가 처음 부딪히는 벽은 언제나 이쪽이다 — 그래서 게이지는 이것 하나만 보여준다.
+    const SYNC_CAP = Math.floor(3.5 * 1024 * 1024);
+
+    /** 지금 서버로 보내는 양과, 남은 자리로 작품 몇 개를 더 넣을 수 있는지. */
+    function syncUsage() {
+      const mine = items.filter((i) => !i.sample);
+      const used = new Blob([JSON.stringify({ items: mine, tomb: readTomb() })]).size;
+      const withPhoto = mine.filter((i) => i.photo);
+      // 남은 자리는 '이 사람이 실제로 쓰는 사진 크기'로 나눈다. 아직 사진이 없으면
+      // 800px WebP q75 한 장의 실측 평균(브라우저 인코더 기준)으로 어림한다.
+      const per = withPhoto.length
+        ? withPhoto.reduce((t, i) => t + i.photo.length, 0) / withPhoto.length + 600
+        : 118_000;
+      return { used, pct: Math.min(100, Math.round(used / SYNC_CAP * 100)),
+               left: Math.max(0, Math.floor((SYNC_CAP - used) / per)) };
+    }
+
+    const mb = (n) => (n / 1024 / 1024).toFixed(1) + "MB";
+
     const SYNC_URL_K = "dp-sync-url", SYNC_KEY_K = "dp-sync-key";
     const SYNC_AT_K = "dp-sync-at", TOMB_K = "dp-tomb";
     const SYNC_URL_DEFAULT = "https://dotlog-sync.thl123563.workers.dev";
@@ -4614,6 +4662,24 @@
           <button type="button" id="s_share">연결 링크 보내기</button>
           <button type="button" id="s_copy" class="secondary">링크 복사</button>
         </div>
+        ${(() => {
+          const u = syncUsage();
+          const lvl = u.pct >= 90 ? "danger" : u.pct >= 80 ? "warn" : "ok";
+          return `
+        <div class="cap-gauge is-${lvl}" style="margin-top:1rem">
+          <div class="cap-head">
+            <span>클라우드 동기화 용량</span>
+            <b>${mb(u.used)} / ${mb(SYNC_CAP)} <small>(${u.pct}%)</small></b>
+          </div>
+          <div class="cap-bar" role="img" aria-label="동기화 용량 ${u.pct}% 사용 중">
+            <span style="width:${Math.max(u.pct, 1)}%"></span>
+          </div>
+          <small class="fld-hint">${
+            u.pct >= 90 ? "거의 찼어요 — 오래된 작품을 파일로 내보낸 뒤 지워주세요."
+            : `사진 있는 작품 약 ${u.left}개를 더 넣을 수 있어요.`
+          }</small>
+        </div>`;
+        })()}
         <p class="fld-hint" style="margin-top:.7rem">
           ${at ? `마지막 동기화 ${new Date(at).toLocaleString("ko-KR")}` : "아직 동기화한 적 없어요"}
           ${syncFails ? `<br /><b style="color:var(--warn-fg,#c0392b)">그 뒤로 ${syncFails}번 실패 — ${escapeHtml(syncLastErr)}</b>` : ""}
