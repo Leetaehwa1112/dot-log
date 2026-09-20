@@ -12,7 +12,7 @@
  *
  * 동기화 요청은 어느 쪽도 아니다. 손대지 않고 그냥 지나보낸다.
  */
-const V = "dotlog-v15";
+const V = "dotlog-v16";
 const DOC = "./index.html";
 const SHELL = ["./", DOC, "./products-catalog.js", "./manifest.webmanifest",
                "./icons/icon-192.png", "./icons/icon-512.png"];

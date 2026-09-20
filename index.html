@@ -2421,8 +2421,12 @@
          ★ !important 를 쓴 이유: 여기 값들은 취향이 아니라 접근성 하한선이다.
            앞쪽의 더 구체적인 장식 규칙(.dp-card-actions .ghost 같은 것)에
            조용히 밀려서 실제로는 38px 로 렌더되고 있었다 — 실측으로 확인했다. */
-      input, select, textarea, button,
-      #sortBy, #f_perDay { font-size: max(16px, 1em) !important; }
+      /* iOS 는 글자 16px 미만인 '입력칸'에 손을 대면 화면을 통째로 확대한다.
+         버튼은 그 대상이 아니다 — 여기에 button 을 넣었더니 1em 이 부모를 물려받아
+         썸네일 안 힌트 버튼이 41.6px 로 부풀었다(터치 기기에서만 나서 늦게 봤다).
+         입력칸만, 그리고 em 대신 rem 으로 잡아 부모 크기에 끌려가지 않게 한다. */
+      input, select, textarea,
+      #sortBy, #f_perDay { font-size: max(16px, 1rem) !important; }
 
       /* 손가락 표적: 애플 44pt · 머티리얼 48dp → 44 를 최소선으로.
          진행 격자(.ccell)는 그림 위의 좌표라서 키우면 뜻이 깨진다 — 손대지 않는다. */
