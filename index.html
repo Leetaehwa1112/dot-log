@@ -76,6 +76,7 @@
       --warn-fg:   #ffa47c;
       --warn-bg:   rgba(255, 138, 82, 0.11);
       --warn-line: rgba(255, 138, 82, 0.42);
+      --warn-on:   #2a1206;   /* 경고색 면 위에 올릴 글자 */
 
       --dur-1: 140ms;
       --dur-2: 240ms;
@@ -141,6 +142,7 @@
       --warn-fg:   #9c3d0c;
       --warn-bg:   #fff3ea;
       --warn-line: #f2c9ac;
+      --warn-on:   #ffffff;
       --pico-background-color: #f6f3fa;
       --pico-color: #251d33;
       --pico-muted-color: #6d6480;
@@ -2449,6 +2451,27 @@
     .sync-nudge .sn-act { display: flex; gap: .4rem; flex: 0 0 auto; margin-left: auto; }
     .sync-nudge button { margin: 0; padding: .45rem .85rem; font-size: .85rem; line-height: 1; }
     @media (pointer: coarse) { .sync-nudge button { min-height: 44px !important; } }
+    /* 카톡·인스타 안에서 열렸을 때. 여기서 쓴 기록이 진짜 브라우저에서 안 보인다는 건
+       나중에 알면 이미 늦는 일이라, 가장 먼저·가장 세게 말한다. */
+    .inapp-bar {
+      display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+      margin: 0 0 1rem; padding: .85rem .95rem;
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-line); border-left-width: 4px;
+      border-radius: var(--radius-md);
+      color: var(--warn-fg);
+    }
+    .inapp-bar .ia-text { flex: 1 1 14rem; display: grid; gap: 3px; min-width: 0; }
+    .inapp-bar .ia-text b { font-size: .95rem; }
+    .inapp-bar .ia-text small { font-size: .83rem; line-height: 1.5; opacity: .92; }
+    .inapp-bar button#iaOpen {
+      flex: 0 0 auto; margin: 0 0 0 auto;
+      padding: .6rem 1rem; min-height: 44px;     /* 손가락으로 누르는 버튼의 하한 */
+      font-size: .87rem; line-height: 1; font-weight: 600; white-space: nowrap;
+      background: var(--warn-fg); color: var(--warn-on);
+      border: none; border-radius: var(--radius-sm);
+    }
+    .inapp-bar button#iaOpen:hover { background: color-mix(in srgb, var(--warn-fg) 86%, #000); }
 </style>
 </head>
 
@@ -3547,6 +3570,48 @@
     // 동기화는 기본으로 켜지 않는다. 계정도 로그인도 없는 앱이라 사용자는
     // "내 기기에만 있는 메모장"으로 받아들인다 — 말없이 서버로 올리면 그 기대를 배신한다.
     // 대신 기록이 실제로 쌓여서 '잃으면 아까운 것'이 됐을 때 한 번 물어본다.
+    // 카톡으로 링크를 주면 대부분 카톡 안에서 열린다. 그 안은 진짜 브라우저가 아니다 —
+    // 저장 공간이 따로 놀아서, 여기서 쓴 기록은 나중에 크롬·사파리로 열면 안 보인다.
+    // 앱 설치(홈 화면 추가)도 거기서는 안 된다. 말 안 해주면 "기록이 날아가는 앱"이 된다.
+    const IN_APP = (() => {
+      const u = navigator.userAgent || "";
+      const m = u.match(/KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|BAND\/|DaumApps|everytimeApp|kakaostory/i);
+      if (!m) return null;
+      const name = /KAKAOTALK/i.test(u) ? "카카오톡"
+                 : /NAVER\(inapp/i.test(u) ? "네이버 앱"
+                 : /Instagram/i.test(u) ? "인스타그램"
+                 : /FBAN|FBAV/i.test(u) ? "페이스북"
+                 : /Line\//i.test(u) ? "라인"
+                 : /BAND\//i.test(u) ? "밴드"
+                 : "다른 앱";
+      return { name, android: /Android/i.test(u) };
+    })();
+
+    function renderInApp() {
+      if (!IN_APP) return;
+      const host = document.querySelector("main.container");
+      if ($("inAppBar")) return;
+      const el = document.createElement("div");
+      el.id = "inAppBar";
+      el.className = "inapp-bar";
+      el.setAttribute("role", "alert");
+      el.innerHTML = `
+        <span class="ia-text">
+          <b>${escapeHtml(IN_APP.name)} 안에서 열렸어요</b>
+          <small>여기서 남긴 기록은 <b>크롬·사파리에서는 안 보입니다.</b>
+          저장 공간이 따로 놀거든요. 홈 화면에 앱으로 넣는 것도 여기서는 안 돼요.
+          ${IN_APP.android ? "아래 버튼으로 옮겨서 시작해 주세요." : "오른쪽 아래 <b>⋯</b> 또는 <b>공유</b> → <b>Safari로 열기</b>를 눌러 주세요."}</small>
+        </span>
+        ${IN_APP.android ? `<button type="button" id="iaOpen">크롬으로 열기</button>` : ""}`;
+      host.insertBefore(el, host.firstChild);
+      const btn = $("iaOpen");
+      if (btn) btn.onclick = () => {
+        // 안드로이드는 인텐트로 실제 브라우저를 부를 수 있다. iOS 는 방법이 없어 안내만 한다.
+        const u = location.href.replace(/^https?:\/\//, "");
+        location.href = `intent://${u}#Intent;scheme=https;package=com.android.chrome;end`;
+      };
+    }
+
     const NUDGE_K = "dp-sync-nudge";      // 0=아직, 1=본 적 있음
     function renderSyncNudge() {
       const host = document.querySelector("main.container");
@@ -3582,7 +3647,7 @@
       };
     }
 
-    function renderAll() { retireExamples(); renderStats(); renderGrid(); animateBars(); if (view === "album") renderAlbum(); renderSafety(); renderSyncNudge(); }
+    function renderAll() { retireExamples(); renderStats(); renderGrid(); animateBars(); if (view === "album") renderAlbum(); renderSafety(); renderSyncNudge(); renderInApp(); }
 
     // ---------- 나의 컬렉션 ----------
     let view = localStorage.getItem("dp-view") || "list";
