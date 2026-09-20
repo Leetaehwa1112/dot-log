@@ -2396,11 +2396,13 @@
 
     /* 모셔둔 킷 — 방 오른쪽 구석에 상자째 쌓아 둔다.
        기대 세운 캔버스와 같은 바닥선(26px)에서 시작해 위로 포갠다. */
+    /* 뒷벽에 붙여 두니 선반에 얹힌 것처럼 보였다. 앞으로 80px 끌어내고
+       바닥선을 12px 로 내려, 밑면이 바닥면 안으로 들어가게 한다 — 그래야 '놓여 있다'로 읽힌다. */
     .kit3 {
-      position: absolute; bottom: calc(26px * var(--fit) + var(--lift));
+      position: absolute; bottom: calc(12px * var(--fit) + var(--lift));
       width: var(--w); margin: 0; pointer-events: auto; cursor: pointer;
       transform-origin: bottom center;
-      transform: translateX(-50%) translateZ(calc(40px * var(--fit))) rotate(var(--tilt));
+      transform: translateX(-50%) translateZ(calc(80px * var(--fit))) rotate(var(--tilt));
     }
     .kit3 > svg { position: static; width: 100%; height: auto; filter: drop-shadow(0 3px 7px rgba(0,0,0,.34)); }
     /* 바닥에 닿은 자리의 그림자. 포개진 상자는 바닥이 아니라 아래 상자에 얹혀 있으니 뺀다. */
@@ -2412,7 +2414,9 @@
     }
     .kit3.stacked::after { display: none; }
     .kit3-tag {
-      position: absolute; bottom: calc(26px * var(--fit) + var(--lift)); transform: translateX(-50%);
+      position: absolute; bottom: calc(12px * var(--fit) + var(--lift));
+      /* 더미와 같은 깊이에 둬야 같이 앞으로 나온다. 안 맞추면 꼬리표만 뒤에 남아 작게 뜬다. */
+      transform: translateX(-50%) translateZ(calc(80px * var(--fit)));
       z-index: 2; pointer-events: none;
       font-size: 10px; font-weight: 800; letter-spacing: .02em;
       color: #fff; background: rgba(12,8,20,.66); border-radius: 999px; padding: 2px 7px;
@@ -4750,7 +4754,7 @@
       const kitPx = Math.max(26, Math.round(KIT_CM * CM * ROOM_FIT));
       const stash = stashList.slice(0, 9).map((i, k) => {
         const col = Math.floor(k / PER_COL), row = k % PER_COL;
-        const x = 71 - col * 20;
+        const x = 68 - col * 20;
         const lift = Math.round(row * kitPx * 0.1125);  // 옆면 높이만큼만 올라간다
         const tilt = (k % 2 ? 1 : -1) * (1.4 + row * 0.5);
         return `<figure class="kit3${row ? " stacked" : ""}" data-dex="${i.id}"
@@ -4762,7 +4766,7 @@
       // 꼬리표는 맨 오른쪽 더미 위에 올린다 — 더미에 가리지 않게 쌓인 높이만큼 띄운다.
       const topRow = Math.min(stashList.length, PER_COL);
       const stashTag = stashList.length
-        ? `<span class="kit3-tag" style="left:71%;--lift:${Math.round((topRow - 1) * kitPx * 0.1125 + kitPx * 0.37)}px"
+        ? `<span class="kit3-tag" style="left:68%;--lift:${Math.round((topRow - 1) * kitPx * 0.1125 + kitPx * 0.37)}px"
                  >모셔둔 킷 ${stashList.length}</span>`
         : "";
 
