@@ -3408,6 +3408,7 @@
           <div class="more-panel">
             <button id="btnInstall" type="button" hidden>앱으로 설치</button>
             <button id="btnSync" type="button">다른 기기와 동기화</button>
+            <button id="btnSamples" type="button">예시 3개 되살리기</button>
             <button id="btnExport" type="button">백업 내려받기</button>
             <button id="btnImport" type="button">백업 불러오기</button>
           </div>
@@ -4766,12 +4767,28 @@
     // 예시는 앱이 빌려준 것이라, 내 기록이 하나라도 생기면 shown() 이 통째로 감춘다.
     // 그런데 아무 말 없이 사라지니 "기록이 날아갔다"로 읽힌다 —
     // 한 번은 말해주고, 자리도 실제로 비운다(예시 사진 3장이 저장공간을 0.5MB 가까이 먹는다).
+    // 예전에는 여기서 예시를 items 에서 지웠다. 그런데 shown() 이 이미
+    // '내 기록이 하나라도 있으면 예시를 숨긴다' 로 동작한다 — 삭제는 중복인데,
+    // 한 번 지우면 되돌릴 수가 없다. 실제로 예시 3개가 영영 사라졌다.
+    // 이제 숨기기만 하고 데이터는 남긴다. 되살리기는 메뉴에서.
     function retireExamples() {
-      if (!items.some((i) => i.sample)) return;        // 이미 치웠다
-      if (!items.some((i) => !i.sample)) return;       // 아직 내 기록이 없다 — 예시를 남겨둔다
-      items = items.filter((i) => !i.sample);
-      save();
-      showToast("예시 3개는 치웠어요 · 이제 내 기록만 보여요");
+      if (!items.some((i) => i.sample)) return;
+      if (!items.some((i) => !i.sample)) return;
+      showToast("예시는 숨겼어요 · 이제 내 기록만 보여요");
+    }
+
+    /** 지워졌거나 숨겨진 예시 3개를 다시 세운다. 내 기록은 건드리지 않는다. */
+    function restoreExamples() {
+      const have = new Set(items.filter((i) => i.sample).map((i) => i.name));
+      const add = sampleItems().filter((x) => !have.has(x.name));
+      if (add.length) { items = items.concat(add); save(); }
+      // 내 기록이 있으면 shown() 이 예시를 숨기므로, 예시를 보려면 그 사실을 알려야 한다.
+      const mine = items.some((i) => !i.sample);
+      renderAll();
+      showToast(add.length
+        ? (mine ? `예시 ${add.length}개를 되살렸어요 · 내 기록이 있어서 목록에는 안 보여요`
+                : `예시 ${add.length}개를 되살렸어요`)
+        : "예시는 이미 다 있어요");
     }
 
     // 동기화는 기본으로 켜지 않는다. 계정도 로그인도 없는 앱이라 사용자는
@@ -6618,6 +6635,7 @@
       const m = $("moreMenu");
       if (m && m.open && !m.contains(e.target)) m.open = false;
     });
+    $("btnSamples").addEventListener("click", () => { $("moreMenu").open = false; restoreExamples(); });
     $("btnSync").addEventListener("click", () => {
       $("moreMenu").open = false;
       if (!syncKey()) localStorage.setItem(SYNC_KEY_K, newSyncKey());   // 처음이면 키를 만들어 준다
@@ -6802,10 +6820,11 @@
       }
     } catch {}
 
-    if (!items.length) {
+    // 예시 3개. 되살리기에서도 같은 정의를 쓴다 — 두 곳에 적으면 반드시 어긋난다.
+    function sampleItems() {
       const now = Date.now();
       const mkDone = (n, idxs) => { const a = new Array(n).fill(false); idxs.forEach((i) => (a[i] = true)); return a; };
-      items = [
+      return [
         // 예시는 실제 다이아몬드아트클럽 제품으로.
         // 사진은 samples/ 에 따로 둔다 — 본문에 base64 로 박으면 첫 화면이 그만큼 늦어지고,
         // 이 사진들은 첫 기록이 생기는 순간 retireExamples() 가 지운다.
@@ -6832,8 +6851,9 @@
           note: "다음 도전 작품. 캔버스만 사둠.",
           photo: "samples/3.webp", createdAt: now - 1000, updatedAt: now - 1000 },
       ];
-      save();
     }
+
+    if (!items.length) { items = sampleItems(); save(); }
 
     // 참고: 예시(sample)는 삭제하지 않고 shown()에서 숨긴다. 편집하면 '내 것'으로 전환.
 
