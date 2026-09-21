@@ -3303,6 +3303,42 @@
       border-bottom-color: var(--pico-color) !important;
     }
     .deco-row { gap: 14px; }
+    /* ═══ 전시실의 공기 ════════════════════════════════════════════════
+       빈 벽이 넓어서 심심한 게 아니라 공기가 없어서다. 방은 맞는데 사진이 아니다.
+       빛·그림자는 이미 있으니 두 가지만 더한다 — 가장자리 감광(비네트)과 필름 그레인.
+       이 둘이 3D 도형 더미를 '찍은 공간' 으로 바꾼다.
+       ════════════════════════════════════════════════════════════════ */
+    .r3-air { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden;
+      background: radial-gradient(118% 88% at 50% 40%, transparent 44%, rgba(3, 5, 12, .62) 100%); }
+    .r3-air::after {
+      content: ""; position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity: .11; mix-blend-mode: overlay;
+    }
+
+    /* 방을 페이지 여백 밖으로 빼 가장자리까지 채운다. 안쪽에 갇혀 있으면 도면이다.
+       단 래퍼가 아니라 방에만 건다 — 래퍼에 걸면 안내문과 색칩까지 끌려 나가
+       글자가 화면 끝에 붙는다. */
+    .r3 {
+      margin-inline: calc(-1 * var(--gut, 20px));
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
+    }
+
+    /* 작품 이름표 — 흰 알약이 아니라 벽에 붙인 미술관 라벨처럼 */
+    .art3 .plate3 {
+      background: none !important; box-shadow: none !important; border: 0 !important;
+      padding: 6px 0 0 !important; text-align: left;
+    }
+    .art3 .plate3 b {
+      display: block; font-size: 9px !important; font-weight: 700 !important;
+      letter-spacing: .02em; color: color-mix(in srgb, #1b1a18 88%, transparent) !important;
+    }
+    .art3 .plate3 span {
+      font-size: 8px !important; font-weight: 520 !important; letter-spacing: .06em;
+      color: color-mix(in srgb, #1b1a18 55%, transparent) !important;
+    }
 </style>
 </head>
 
@@ -5186,6 +5222,7 @@
                 <div class="r3-surf r3-wall r3-right">${wallArt.right}</div>
                 <div class="r3-surf r3-wall r3-back">${wallArt.back}${leaning}${stash}${stashTag}</div>
               </div>
+              <span class="r3-air" aria-hidden="true"></span>
               <div class="r3-zoom">
                 <button type="button" data-zoom="-1" aria-label="뒤로">−</button>
                 <button type="button" data-zoom="1" aria-label="앞으로">＋</button>
@@ -5225,7 +5262,9 @@
     }
 
     // ── 카메라 + 꾸미기 + 자리 옮기기 ────────────────────────────────
-    let camYaw = 0, camPitch = 0, camDolly = 0, camSel = null;
+    // 정면·원거리에서 시작하면 방이 아니라 입면도로 보인다.
+    // 처음부터 살짝 틀고 한 걸음 들어가 있게 둔다 — '찍은 공간'으로 읽힌다.
+    let camYaw = -6, camPitch = 2, camDolly = 70, camSel = null;
     function camApply() {
       const r = $("r3"); if (!r) return;
       r.style.setProperty("--yaw", camYaw.toFixed(2) + "deg");
