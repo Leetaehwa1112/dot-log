@@ -3493,6 +3493,32 @@
       position: absolute; left: 28%; right: 28%; top: 18%; bottom: 18%;
       background: #fffdfc; box-shadow: inset 0 0 0 1.5px #c3373e;
     }
+    /* 창문과 바닥에 떨어지는 빛 — 빈 벽을 그냥 두면 방이 아니라 상자가 된다 */
+    .iso-win {
+      background: linear-gradient(200deg, #cfe2f2, #eef5fb 46%, #fdfaf2);
+      box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--skirt) 82%, #000),
+                  0 0 26px 6px rgba(255, 246, 214, .28);
+    }
+    .iso-win .win-bar { position: absolute; left: 0; right: 0; top: 50%; height: 3px;
+                        background: color-mix(in srgb, var(--skirt) 82%, #000); }
+    .iso-win .win-bar.v { left: 50%; right: auto; top: 0; bottom: 0; width: 3px; height: auto; }
+    .iso-sun {
+      background: linear-gradient(120deg, rgba(255, 244, 208, .40), rgba(255, 244, 208, 0) 78%);
+      mix-blend-mode: screen; pointer-events: none;   /* blur 를 주면 방 밖으로 번진다 */
+    }
+
+    /* 바닥 그림자 — 물건이 바닥에 닿아 보이게 하는 건 결국 이것 하나다 */
+    .iso-shadow {
+      background: radial-gradient(ellipse at 50% 50%, rgba(18, 12, 6, .42), transparent 68%);
+      pointer-events: none;
+    }
+
+    /* 벽 위쪽 몰딩 한 줄 — 벽이 그냥 색면이 아니라 '벽'으로 읽힌다 */
+    .iso-wall::before {
+      content: ""; position: absolute; left: 0; right: 0; top: 7%; height: 2px;
+      background: color-mix(in srgb, var(--skirt) 74%, #000); opacity: .5;
+    }
+    .iso-rug { box-shadow: inset 0 0 0 5px rgba(0,0,0,.14), inset 0 0 0 10px rgba(255,255,255,.05); }
 </style>
 </head>
 
@@ -5294,7 +5320,7 @@
     //
     //   화면 x = (X - Z)        · X 는 오른쪽 아래로, Z 는 왼쪽 아래로
     //   화면 y = (X + Z)/2 - Y  · Y 는 위로
-    const ROOM = { w: 300, d: 300, h: 215 };        // cm
+    const ROOM = { w: 400, d: 400, h: 235 };        // cm — 좁으면 물건이 벽에 붙어 답답하다
     let ISO_K = 1;                                   // cm → px
 
     const sxOf = (x, y, z) => (x - z) * ISO_K;
@@ -5315,20 +5341,27 @@
              `transform:translate(${tx}px,${ty}px) matrix(${ax},${ay},${bx},${by},0,0)">${inner}</div>`;
     }
 
+    /** 바닥에 지는 그림자. 물건이 바닥에 '닿아' 보이게 하는 건 결국 이것 하나다. */
+    function isoShadow(x, z, w, d, blur = 10) {
+      return isoFace({ p: [x - blur, 0.3, z - blur], e1: DIR.x, e2: DIR.z,
+                       w: w + blur * 2, h: d + blur * 2, cls: "iso-shadow", zi: 5 });
+    }
+
     /** 직육면체. 아이소에서는 윗면과 옆 두 면만 보인다 — 다섯 장을 세울 이유가 없다. */
-    function isoBox({ x, y = 0, z, w, d, h, cls = "", attr = "", top = "" }) {
+    function isoBox({ x, y = 0, z, w, d, h, cls = "", attr = "", top = "", shadow = false }) {
       const zi = Math.round(x + z + w / 2 + d / 2) + 10;
-      return isoFace({ p: [x, y + h, z], e1: DIR.x, e2: DIR.z, w, h: d, cls: `${cls} f-top`, inner: top, attr, zi }) +
+      return (shadow ? isoShadow(x, z, w, d) : "") +
+             isoFace({ p: [x, y + h, z], e1: DIR.x, e2: DIR.z, w, h: d, cls: `${cls} f-top`, inner: top, attr, zi }) +
              isoFace({ p: [x, y + h, z + d], e1: DIR.x, e2: DIR.down, w, h, cls: `${cls} f-south`, attr, zi }) +
              isoFace({ p: [x + w, y + h, z], e1: DIR.z, e2: DIR.down, w: d, h, cls: `${cls} f-east`, attr, zi });
     }
 
     /** 모셔둔 킷 한 상자. 85 x 26 x 18 cm. */
     function isoKit(item, x, y, z) {
-      const dac = isDacBrand(item.brand);
+      const dac = isDacBrand(item.brand);   // 맨 아래 상자에만 그림자를 준다
       return isoBox({
         x, y, z, w: 85, d: 26, h: 18,
-        cls: "iso-kit " + (dac ? "is-dac" : "is-plain"),
+        cls: "iso-kit " + (dac ? "is-dac" : "is-plain"), shadow: y < 1,
         attr: `data-dex="${item.id}" title="${escapeHtml(item.name)} · 모셔둠"`,
         top: dac ? '<span class="kit-plate"></span>' : "",
       });
@@ -5366,6 +5399,16 @@
         isoFace({ p: [0, ROOM.h, 0], e1: DIR.x, e2: DIR.down, w: ROOM.w, h: ROOM.h, cls: "iso-wall w-right", zi: 2 }) +
         isoFace({ p: [0, ROOM.h, ROOM.d], e1: DIR.nz, e2: DIR.down, w: ROOM.d, h: ROOM.h, cls: "iso-wall w-left", zi: 2 });
 
+      // 창문(왼쪽 벽)과 거기서 바닥으로 떨어지는 빛.
+      // 빈 벽 하나를 그냥 두면 방이 아니라 상자가 된다. 빛이 들어와야 시간이 생긴다.
+      const WIN = { z: 118, w: 120, y: 92, h: 104 };
+      const win =
+        isoFace({ p: [0, WIN.y + WIN.h, ROOM.d - WIN.z], e1: DIR.nz, e2: DIR.down,
+                  w: WIN.w, h: WIN.h, cls: "iso-win", zi: 3,
+                  inner: '<i class="win-bar"></i><i class="win-bar v"></i>' }) +
+        isoFace({ p: [6, 0.2, ROOM.d - WIN.z - 14], e1: DIR.x, e2: DIR.z,
+                  w: 132, h: WIN.w + 28, cls: "iso-sun", zi: 4 });
+
       // 완성작은 오른쪽 벽(z=0 면)에 건다. 넘치면 왼쪽 벽으로.
       const HANG = 128;                                   // 그림 중심 높이 cm
       const wallArt = doneList.slice(0, 6).map((i, k) => {
@@ -5377,25 +5420,32 @@
         const right = k % 2 === 0;
         const slot = Math.floor(k / 2);
         return right
-          ? isoFace({ p: [56 + slot * 118, HANG + h / 2, 0], e1: DIR.x, e2: DIR.down, w, h,
+          ? isoFace({ p: [74 + slot * 130, HANG + h / 2, 0], e1: DIR.x, e2: DIR.down, w, h,
                       cls: "iso-art", inner, attr: `data-dex="${i.id}"`, zi: 3 })
-          : isoFace({ p: [0, HANG + h / 2, ROOM.d - 56 - slot * 118], e1: DIR.nz, e2: DIR.down, w, h,
+          : isoFace({ p: [0, HANG + h / 2, ROOM.d - 74 - slot * 130], e1: DIR.nz, e2: DIR.down, w, h,
                       cls: "iso-art", inner, attr: `data-dex="${i.id}"`, zi: 3 });
       }).join("");
 
       // 세간. 색을 주지 않는다 — 작품과 경쟁시키지 않는다.
-      const rug = isoFace({ p: [22, 0.4, 120], e1: DIR.x, e2: DIR.z, w: 180, h: 130, cls: "iso-rug", zi: 4 });
-      const DESK = { x: 40, z: 150, w: 118, d: 58, h: 72 };
+      const rug = isoFace({ p: [46, 0.4, 150], e1: DIR.x, e2: DIR.z, w: 220, h: 168, cls: "iso-rug", zi: 4 });
+      const DESK = { x: 66, z: 172, w: 132, d: 78, h: 72 };
       const onDesk = progList[0] || null;
       let desk =
-        isoBox({ x: DESK.x, y: DESK.h - 5, z: DESK.z, w: DESK.w, d: DESK.d, h: 5, cls: "iso-desk" }) +
+        isoBox({ x: DESK.x, y: DESK.h - 5, z: DESK.z, w: DESK.w, d: DESK.d, h: 5, cls: "iso-desk", shadow: true }) +
         isoBox({ x: DESK.x + 4, y: 0, z: DESK.z + 4, w: 6, d: 6, h: DESK.h - 5, cls: "iso-desk leg" }) +
         isoBox({ x: DESK.x + DESK.w - 10, y: 0, z: DESK.z + 4, w: 6, d: 6, h: DESK.h - 5, cls: "iso-desk leg" }) +
         isoBox({ x: DESK.x + 4, y: 0, z: DESK.z + DESK.d - 10, w: 6, d: 6, h: DESK.h - 5, cls: "iso-desk leg" }) +
         isoBox({ x: DESK.x + DESK.w - 10, y: 0, z: DESK.z + DESK.d - 10, w: 6, d: 6, h: DESK.h - 5, cls: "iso-desk leg" });
       if (onDesk) {
         const cm = artCm(onDesk), ph = photoSrc(onDesk);
-        const w = Math.min(cm.w, DESK.w - 20), h = Math.min(cm.h, DESK.d - 14);
+        // 가로·세로를 따로 자르면 그림이 찌그러지고 작아진다. 비율을 지켜 맞추되,
+        // 세로로 긴 도안은 눕혀 놓는다 — 실제로 책상에서도 그렇게 놓는다.
+        const maxW = DESK.w - 26, maxH = DESK.d - 18;
+        const up = Math.min(maxW / cm.w, maxH / cm.h);
+        const side = Math.min(maxW / cm.h, maxH / cm.w);
+        const lay = side > up;
+        const k = Math.max(up, side);
+        const w = (lay ? cm.h : cm.w) * k, h = (lay ? cm.w : cm.h) * k;
         desk += isoFace({
           p: [DESK.x + (DESK.w - w) / 2, DESK.h + 0.6, DESK.z + (DESK.d - h) / 2],
           e1: DIR.x, e2: DIR.z, w, h, cls: "iso-canvas",
@@ -5405,22 +5455,22 @@
         });
       }
       const chair =
-        isoBox({ x: DESK.x + 34, y: 42, z: DESK.z + DESK.d + 16, w: 44, d: 44, h: 5, cls: "iso-chair" }) +
-        isoBox({ x: DESK.x + 34, y: 47, z: DESK.z + DESK.d + 55, w: 44, d: 5, h: 42, cls: "iso-chair back" }) +
-        isoBox({ x: DESK.x + 36, y: 0, z: DESK.z + DESK.d + 18, w: 5, d: 5, h: 42, cls: "iso-chair leg" }) +
-        isoBox({ x: DESK.x + 71, y: 0, z: DESK.z + DESK.d + 18, w: 5, d: 5, h: 42, cls: "iso-chair leg" });
+        isoBox({ x: DESK.x + 38, y: 42, z: DESK.z + DESK.d + 18, w: 44, d: 44, h: 5, cls: "iso-chair", shadow: true }) +
+        isoBox({ x: DESK.x + 38, y: 47, z: DESK.z + DESK.d + 57, w: 44, d: 5, h: 42, cls: "iso-chair back" }) +
+        isoBox({ x: DESK.x + 40, y: 0, z: DESK.z + DESK.d + 20, w: 5, d: 5, h: 42, cls: "iso-chair leg" }) +
+        isoBox({ x: DESK.x + 75, y: 0, z: DESK.z + DESK.d + 20, w: 5, d: 5, h: 42, cls: "iso-chair leg" });
 
       // 모셔둔 킷은 오른쪽 구석에 쌓는다
       const stash = stashList.slice(0, 9).map((i, k) => {
         const col = Math.floor(k / 3), row = k % 3;
-        return isoKit(i, 200 - col * 4, row * 18, 26 + col * 34);
+        return isoKit(i, 282 - col * 4, row * 18, 34 + col * 34);
       }).join("");
 
       // 붙이는 중인 나머지는 왼쪽 벽에 기대 세운다
       const leaning = progList.slice(onDesk ? 1 : 0, 3).map((i, k) => {
         const cm = artCm(i), ph = photoSrc(i);
         const w = Math.min(cm.w, 62), h = w * cm.h / cm.w;
-        return isoFace({ p: [7, h, ROOM.d - 70 - k * 74], e1: DIR.nz, e2: DIR.down, w, h,
+        return isoFace({ p: [7, h, ROOM.d - 92 - k * 78], e1: DIR.nz, e2: DIR.down, w, h,
           cls: "iso-lean", attr: `data-dex="${i.id}" title="${escapeHtml(i.name)} · ${pct(i)}%"`,
           css: ph ? `background-image:url('${escapeHtml(ph)}');` : "", zi: 6 });
       }).join("");
@@ -5428,7 +5478,7 @@
       const scene = `<div class="iso" id="r3" style="width:${sceneW.toFixed(0)}px;height:${sceneH.toFixed(0)}px;
           --wallA:${WALL_PALETTES[cfg.wall][0]};--wallB:${WALL_PALETTES[cfg.wall][1]};--skirt:${WALL_PALETTES[cfg.wall][2]};
           --floorA:${FLOOR_PALETTES[cfg.floor][0]};--floorB:${FLOOR_PALETTES[cfg.floor][1]}">
-          <div class="iso-org" style="--org-y:${(ROOM.h * ISO_K).toFixed(1)}px">${shell}${rug}${wallArt}${leaning}${desk}${chair}${stash}</div>
+          <div class="iso-org" style="--org-y:${(ROOM.h * ISO_K).toFixed(1)}px">${shell}${win}${rug}${wallArt}${leaning}${desk}${chair}${stash}</div>
         </div>`;
 
       const [wa, wb, sk] = WALL_PALETTES[cfg.wall] || WALL_PALETTES.cream;
