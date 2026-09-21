@@ -3410,6 +3410,89 @@
     /* 자리를 고르면 미끄러지듯 옮긴다. 끌 때는 붙지 않아야 하니 클래스로만 켠다. */
     .r3.gliding .r3-stage { transition: transform .58s cubic-bezier(.22, 1, .3, 1); }
     @media (prefers-reduced-motion: reduce) { .r3.gliding .r3-stage { transition: none; } }
+    /* ═══ 아이소메트릭 방 ══════════════════════════════════════════════
+       평행투영이라 원근이 없다. 면은 전부 2D div 에 matrix() 로 눕힌 것이고,
+       겹침은 z-index(화가 알고리즘)로만 정한다. 카메라도, 뒷면도 없다.
+       ════════════════════════════════════════════════════════════════ */
+    .iso { position: relative; margin: 0 auto; }
+    /* 원점은 방의 안쪽 구석(바닥 높이)이다. 위로 올라가는 것은 화면 y 가 음수가 되므로,
+       원점을 벽 높이만큼 내려놓지 않으면 책상·의자·액자가 전부 장면 위로 잘려 나간다. */
+    .iso-org { position: absolute; left: 50%; top: var(--org-y, 0px); }
+    .iso-f {
+      position: absolute; left: 0; top: 0;
+      transform-origin: 0 0; background-repeat: no-repeat; background-size: cover;
+      background-position: center;
+    }
+
+    .iso-floor { background: linear-gradient(150deg, var(--floorA), var(--floorB)); }
+    .iso-floor::after {            /* 마루 결 */
+      content: ""; position: absolute; inset: 0; opacity: .3;
+      background: repeating-linear-gradient(90deg, rgba(0,0,0,.22) 0 1px, transparent 1px 26px);
+    }
+    .iso-wall { background: var(--wallA); }
+    .iso-wall.w-right { background: linear-gradient(180deg, color-mix(in srgb, var(--wallA) 92%, #fff), var(--wallB)); }
+    .iso-wall.w-left  { background: linear-gradient(180deg, color-mix(in srgb, var(--wallA) 78%, #000), color-mix(in srgb, var(--wallB) 72%, #000)); }
+    .iso-wall::after {             /* 걸레받이 */
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 7%;
+      background: color-mix(in srgb, var(--skirt) 88%, #000);
+    }
+
+    .iso-rug { background: rgba(0,0,0,.16); box-shadow: inset 0 0 0 4px rgba(0,0,0,.12); }
+
+    /* 걸린 작품 — 액자 + 아래 작은 이름표 */
+    .iso-art { cursor: pointer; }
+    .iso-art .fr-art {
+      position: absolute; inset: 0; display: block; overflow: hidden;
+      background: #efe9dd; border: 3px solid var(--frameC, #6b4c2e);
+      box-shadow: 0 6px 14px -8px rgba(0,0,0,.6);
+    }
+    .iso-art .fr-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .iso-art .fr-plate {
+      position: absolute; left: 0; top: calc(100% + 4px); white-space: nowrap;
+      color: color-mix(in srgb, #1b1a18 86%, transparent);
+    }
+    .iso-art .fr-plate b { display: block; font-size: 8px; font-weight: 700; }
+    .iso-art .fr-plate i { font-size: 7px; font-style: normal; opacity: .62; }
+    .iso-art.sel .fr-art { border-color: var(--brand); }
+
+    /* 기대 세운 캔버스 · 책상 위 캔버스 */
+    .iso-lean, .iso-canvas { cursor: pointer; background-color: #f3efe6; }
+    .iso-lean { box-shadow: 0 0 0 1px rgba(0,0,0,.28), -4px 4px 0 0 rgba(0,0,0,.16); }
+    .iso-canvas { box-shadow: 0 0 0 1px rgba(0,0,0,.25); }
+    .iso-lean.sel, .iso-canvas.sel { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+    /* 입체의 세 면 — 윗면이 제일 밝고, 왼쪽 아래를 보는 면, 오른쪽 아래를 보는 면 순 */
+    /* 입체에는 전부 얇은 윤곽선을 준다. 아이소 일러스트는 선이 있어야 형태가 선다.
+       그리고 가구 색이 바닥색과 같으면 통째로 사라진다 — 실제로 책상이 안 보였다. */
+    .iso-desk, .iso-chair, .iso-kit { box-shadow: inset 0 0 0 1px rgba(28, 20, 12, .38); }
+    .iso-desk.f-top   { background: #c49a66; }
+    .iso-desk.f-south { background: #a37c4e; }
+    .iso-desk.f-east  { background: #856239; }
+    .iso-desk.leg.f-top   { background: #8e6a41; }
+    .iso-desk.leg.f-south { background: #745533; }
+    .iso-desk.leg.f-east  { background: #5d4429; }
+    .iso-chair.f-top   { background: #6f6760; }
+    .iso-chair.f-south { background: #565049; }
+    .iso-chair.f-east  { background: #403b36; }
+
+    .iso-kit { cursor: pointer; }
+    :root { --kit-tile: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%206.5%2012.4%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23c3373e%27%20stroke-width%3D%27.42%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%3E%3Cg%20transform%3D%27translate%280%200%29%27%3E%3Cpath%20d%3D%27M.945%200h4.01L5.9%201.38%202.95%205.18%200%201.38Z%27%2F%3E%3Cpath%20d%3D%27M0%201.38h5.9%27%2F%3E%3Cpath%20d%3D%27M.945%200%201.475%201.38M2.282%200%201.475%201.38M2.282%200%202.95%201.38M3.618%200%202.95%201.38M3.618%200%204.425%201.38M4.955%200%204.425%201.38%27%2F%3E%3Cpath%20d%3D%27M1.475%201.38%202.95%205.18M2.95%201.38v3.8M4.425%201.38%202.95%205.18%27%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%27translate%28-3.25%206.2%29%27%3E%3Cpath%20d%3D%27M.945%200h4.01L5.9%201.38%202.95%205.18%200%201.38Z%27%2F%3E%3Cpath%20d%3D%27M0%201.38h5.9%27%2F%3E%3Cpath%20d%3D%27M.945%200%201.475%201.38M2.282%200%201.475%201.38M2.282%200%202.95%201.38M3.618%200%202.95%201.38M3.618%200%204.425%201.38M4.955%200%204.425%201.38%27%2F%3E%3Cpath%20d%3D%27M1.475%201.38%202.95%205.18M2.95%201.38v3.8M4.425%201.38%202.95%205.18%27%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%27translate%283.25%206.2%29%27%3E%3Cpath%20d%3D%27M.945%200h4.01L5.9%201.38%202.95%205.18%200%201.38Z%27%2F%3E%3Cpath%20d%3D%27M0%201.38h5.9%27%2F%3E%3Cpath%20d%3D%27M.945%200%201.475%201.38M2.282%200%201.475%201.38M2.282%200%202.95%201.38M3.618%200%202.95%201.38M3.618%200%204.425%201.38M4.955%200%204.425%201.38%27%2F%3E%3Cpath%20d%3D%27M1.475%201.38%202.95%205.18M2.95%201.38v3.8M4.425%201.38%202.95%205.18%27%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }
+    .iso-kit.is-dac.f-top,
+    .iso-kit.is-dac.f-south,
+    .iso-kit.is-dac.f-east {
+      background-color: #fdfbfa;
+      background-image: var(--kit-tile);
+      background-size: 15px 28.6px; background-repeat: repeat;
+    }
+    .iso-kit.is-dac.f-south { filter: brightness(.93); }
+    .iso-kit.is-dac.f-east  { filter: brightness(.84); }
+    .iso-kit.is-plain.f-top { background: #e0c6a4; }
+    .iso-kit.is-plain.f-south { background: #cbae8a; }
+    .iso-kit.is-plain.f-east { background: #b1936f; }
+    .kit-plate {
+      position: absolute; left: 28%; right: 28%; top: 18%; bottom: 18%;
+      background: #fffdfc; box-shadow: inset 0 0 0 1.5px #c3373e;
+    }
 </style>
 </head>
 
@@ -5203,60 +5286,57 @@
     }
 
     let ROOM_FIT = 1;
-    // ── 방에 놓는 3D 물건 ─────────────────────────────────────────
-    // 지금까지 상자는 SVG 그림 한 장을 세워 둔 것(빌보드)이었다. 방을 돌리면
-    // 같이 돌아 버려서 종이 조각처럼 보인다. 면 다섯 장을 실제로 세워 만든다.
-    const PX = (cm) => cm * CM * ROOM_FIT;
+    // ── 아이소메트릭 방 ───────────────────────────────────────────
+    // 원근 3D 를 접었다. 카메라가 있으면 가장자리 물건이 화면 밖으로 밀리고,
+    // 보려면 돌려야 하고, 면 다섯 장과 뒷면을 관리해야 한다.
+    // 평행투영(아이소메트릭)은 카메라가 없다 — 위치가 좌표 계산 하나로 끝나고,
+    // 무엇도 왜곡되지 않고, 늘 같은 그림이 나온다. 게임 아트가 이 방식을 쓰는 이유다.
+    //
+    //   화면 x = (X - Z)        · X 는 오른쪽 아래로, Z 는 왼쪽 아래로
+    //   화면 y = (X + Z)/2 - Y  · Y 는 위로
+    const ROOM = { w: 300, d: 300, h: 215 };        // cm
+    let ISO_K = 1;                                   // cm → px
 
-    /** 바닥에 놓인 직육면체. l·d·h 는 cm, x·z 는 방 중심 기준 cm, y 는 바닥에서 띄운 높이 cm. */
-    function box3({ l, d, h, x = 0, y = 0, z = 0, rot = 0, cls = "", attr = "", faces = {}, css = "" }) {
-      const L = PX(l), D = PX(d), H = PX(h);
-      // 방 중심이 원점이고 아래가 +Y, 바닥은 +H/2 에 있다.
-      const cy = `calc(var(--H) / 2 - ${(PX(y) + H / 2).toFixed(1)}px)`;
-      const f = (k, w, ht, tf) =>
-        `<i class="bx-f bx-${k}" style="width:${w.toFixed(1)}px;height:${ht.toFixed(1)}px;` +
-        `margin-left:${(-w / 2).toFixed(1)}px;margin-top:${(-ht / 2).toFixed(1)}px;` +
-        `transform:${tf}">${faces[k] || ""}</i>`;
-      return `<div class="box3 ${cls}" ${attr}
-          style="${css}transform:translate3d(${PX(x).toFixed(1)}px, ${cy}, ${PX(z).toFixed(1)}px) rotateY(${rot}deg)">
-        ${f("top",   L, D, `translateY(${(-H / 2).toFixed(1)}px) rotateX(90deg)`)}
-        ${f("front", L, H, `translateZ(${(D / 2).toFixed(1)}px)`)}
-        ${f("back",  L, H, `translateZ(${(-D / 2).toFixed(1)}px) rotateY(180deg)`)}
-        ${f("left",  D, H, `translateX(${(-L / 2).toFixed(1)}px) rotateY(-90deg)`)}
-        ${f("right", D, H, `translateX(${(L / 2).toFixed(1)}px) rotateY(90deg)`)}
-      </div>`;
+    const sxOf = (x, y, z) => (x - z) * ISO_K;
+    const syOf = (x, y, z) => ((x + z) / 2 - y) * ISO_K;
+    // 단위 방향의 화면 벡터 (K 를 곱하지 않은 값 — matrix 계수로 그대로 쓴다)
+    const DIR = { x: [1, 0.5], z: [-1, 0.5], nz: [1, -0.5], down: [0, 1] };
+
+    /**
+     * 면 하나. P(cm) 에 모서리를 두고 e1 방향으로 w, e2 방향으로 h 만큼 펼친다.
+     * 겹침 순서는 z-index 로 정한다 — 화가 알고리즘, 앞쪽(x+z 가 큰 것)이 위.
+     */
+    function isoFace({ p, e1, e2, w, h, cls = "", inner = "", css = "", attr = "", zi = null }) {
+      const [ax, ay] = e1, [bx, by] = e2;
+      const tx = sxOf(p[0], p[1], p[2]).toFixed(1), ty = syOf(p[0], p[1], p[2]).toFixed(1);
+      const z = zi == null ? Math.round(p[0] + p[2]) + 10 : zi;
+      return `<div class="iso-f ${cls}" ${attr} style="${css}z-index:${z};` +
+             `width:${(w * ISO_K).toFixed(1)}px;height:${(h * ISO_K).toFixed(1)}px;` +
+             `transform:translate(${tx}px,${ty}px) matrix(${ax},${ay},${bx},${by},0,0)">${inner}</div>`;
     }
 
-    // 상자 겉면 다이아 타일은 CSS 에 둔다(.kit3.is-dac .bx-f).
-    // 인라인 style 에 data URI 를 넣었더니 그 안의 큰따옴표가 HTML 속성을 끊어
-    // transform 까지 통째로 날아갔다 — 상자 셋이 원점에 겹쳐 있었다.
+    /** 직육면체. 아이소에서는 윗면과 옆 두 면만 보인다 — 다섯 장을 세울 이유가 없다. */
+    function isoBox({ x, y = 0, z, w, d, h, cls = "", attr = "", top = "" }) {
+      const zi = Math.round(x + z + w / 2 + d / 2) + 10;
+      return isoFace({ p: [x, y + h, z], e1: DIR.x, e2: DIR.z, w, h: d, cls: `${cls} f-top`, inner: top, attr, zi }) +
+             isoFace({ p: [x, y + h, z + d], e1: DIR.x, e2: DIR.down, w, h, cls: `${cls} f-south`, attr, zi }) +
+             isoFace({ p: [x + w, y + h, z], e1: DIR.z, e2: DIR.down, w: d, h, cls: `${cls} f-east`, attr, zi });
+    }
 
-    /** 모셔둔 킷 한 상자. 실제 치수 85 x 22 x 14 cm. */
-    function kit3d(item, { x, y, z, rot }) {
+    /** 모셔둔 킷 한 상자. 85 x 26 x 18 cm. */
+    function isoKit(item, x, y, z) {
       const dac = isDacBrand(item.brand);
-      // 인라인으로는 크기만 내려 보낸다(따옴표 없는 값이라 안전하다).
-      const tile = dac ? `--ts:${PX(6).toFixed(1)}px;` : "";
-      const label = dac
-        ? `<span class="bx-plate"></span>`
-        : "";
-      return box3({
-        l: 85, d: 26, h: 18, x, y, z, rot,   // 실제 킷 상자 비율. 너무 납작하면 쌓인 게 안 보인다
-        cls: "kit3" + (dac ? " is-dac" : " is-plain"),
+      return isoBox({
+        x, y, z, w: 85, d: 26, h: 18,
+        cls: "iso-kit " + (dac ? "is-dac" : "is-plain"),
         attr: `data-dex="${item.id}" title="${escapeHtml(item.name)} · 모셔둠"`,
-        faces: { top: label },
-        css: tile,
+        top: dac ? '<span class="kit-plate"></span>' : "",
       });
     }
 
     function renderAlbum() {
       const el = $("albumView");
-      // 방 전체를 화면에 우겨넣으면 폰에서는 4m 벽이 통째로 들어와
-      // 55cm 작품이 손톱만 해진다. 대신 '한 번에 보이는 벽 폭'을 정하고
-      // 거기에 맞춘다 — 화면이 좁을수록 벽 앞으로 다가선 것처럼 된다.
-      // (0.822 = 뒷벽이 원근 때문에 줄어드는 비율, 실측값)
-      const boxW = el.clientWidth || document.body.clientWidth || 700;
-      const spanCm = Math.max(230, Math.min(460, boxW * 0.55));
-      ROOM_FIT = Math.max(0.35, Math.min(1.15, boxW / (spanCm * CM * 0.822)));
+      // 원근 시절의 '보이는 벽 폭' 계산은 없앴다. 아이소는 배율 하나(ISO_K)로 끝난다.
       const vis = shown();
       const noMap = dexNumbers(vis);
       const doneN = vis.filter((i) => i.status === "done").length;
@@ -5266,85 +5346,90 @@
       const totalCells = vis.reduce((s, i) => s + doneCount(i), 0);
       const list = [...vis].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
-      const doneList = list.filter((i) => i.status === "done");
-      const wipList  = list.filter((i) => i.status !== "done");
-
-      const cfg = roomCfg();
-      const placed = autoPlace(doneList, cfg.place);
-      const wallArt = { back: "", left: "", right: "" };
-
-      doneList.forEach((i, idx) => {
-        const pl = placed[i.id];
-        const n = artNode(i, idx);
-        const no = String(noMap[i.id]).padStart(3, "0");
-        wallArt[pl.w] += `<figure class="art3" data-dex="${i.id}"
-            style="--w:${n.w}px;--n:${idx};left:${pl.x.toFixed(1)}%;top:${pl.y.toFixed(1)}%">
-          ${n.html}
-          <figcaption class="plate3"><b>${escapeHtml(i.name)}</b>
-            <span>#${no}${i.end ? ` · ${fmtK(i.end)}` : ""}${i.rating ? ` · ${ratingStars(i.rating)}` : ""}</span>
-          </figcaption>
-        </figure>`;
-      });
-
-      // 붙이는 중인 건 바닥에 기대 세워둔다 — 방에 사람이 사는 티가 난다.
-      // 모셔둔 건 기대 세우지 않는다. 아직 뜯지도 않았으니 캔버스가 나와 있을 리 없다.
+      const doneList  = list.filter((i) => i.status === "done");
+      const wipList   = list.filter((i) => i.status !== "done");
       const progList  = wipList.filter((i) => i.status !== "planned");
       const stashList = wipList.filter((i) => i.status === "planned");
 
-      // 붙이는 중인 것 하나는 책상 위에 펼쳐 둔다 — 방에 사람이 앉아 있던 티가 난다.
-      // 나머지는 벽에 기대 세운다.
-      const onDesk = progList[0] || null;
-      const leaning = progList.slice(onDesk ? 1 : 0, 3).map((i, k) => {
-        const n = artNode(i, k);
-        const x = 16 + k * 24;
-        return `<figure class="lean3" data-dex="${i.id}" style="--w:${Math.round(n.w * 0.78)}px;left:${x}%">
-          ${n.html}<span class="lean-tag">${pct(i)}%</span>
-        </figure>`;
+      const cfg = roomCfg();
+
+      // 가로 폭에 맞춰 cm→px 배율을 정한다. 방 전체가 늘 화면 안에 들어간다 —
+      // 원근이 없으니 가장자리가 밀려 나갈 일이 없다.
+      const boxW2 = el.clientWidth || document.body.clientWidth || 700;
+      ISO_K = Math.min(1.15, boxW2 / (ROOM.w + ROOM.d));
+      const sceneW = (ROOM.w + ROOM.d) * ISO_K;
+      const sceneH = ((ROOM.w + ROOM.d) / 2 + ROOM.h) * ISO_K;
+
+      // 벽 두 장과 바닥. 왼쪽 벽은 앵커를 먼 모서리에 두어 내용이 뒤집히지 않게 한다.
+      const shell =
+        isoFace({ p: [0, 0, 0], e1: DIR.x, e2: DIR.z, w: ROOM.w, h: ROOM.d, cls: "iso-floor", zi: 1 }) +
+        isoFace({ p: [0, ROOM.h, 0], e1: DIR.x, e2: DIR.down, w: ROOM.w, h: ROOM.h, cls: "iso-wall w-right", zi: 2 }) +
+        isoFace({ p: [0, ROOM.h, ROOM.d], e1: DIR.nz, e2: DIR.down, w: ROOM.d, h: ROOM.h, cls: "iso-wall w-left", zi: 2 });
+
+      // 완성작은 오른쪽 벽(z=0 면)에 건다. 넘치면 왼쪽 벽으로.
+      const HANG = 128;                                   // 그림 중심 높이 cm
+      const wallArt = doneList.slice(0, 6).map((i, k) => {
+        const cm = artCm(i), ph = photoSrc(i);
+        const w = Math.min(cm.w, 90), h = w * cm.h / cm.w;
+        const no = String(noMap[i.id]).padStart(3, "0");
+        const inner = `<span class="fr-art">${ph ? `<img src="${escapeHtml(ph)}" alt="${escapeHtml(i.name)}" loading="lazy" />` : ""}</span>` +
+          `<span class="fr-plate"><b>${escapeHtml(i.name)}</b><i>#${no}${i.rating ? " · " + ratingStars(i.rating) : ""}</i></span>`;
+        const right = k % 2 === 0;
+        const slot = Math.floor(k / 2);
+        return right
+          ? isoFace({ p: [56 + slot * 118, HANG + h / 2, 0], e1: DIR.x, e2: DIR.down, w, h,
+                      cls: "iso-art", inner, attr: `data-dex="${i.id}"`, zi: 3 })
+          : isoFace({ p: [0, HANG + h / 2, ROOM.d - 56 - slot * 118], e1: DIR.nz, e2: DIR.down, w, h,
+                      cls: "iso-art", inner, attr: `data-dex="${i.id}"`, zi: 3 });
       }).join("");
 
-      // 책상 120 x 60 x 74 cm. 상판 한 장 + 다리 두 장이면 형태가 선다.
-      const DESK = { l: 118, d: 58, h: 4, x: -50, z: 6, top: 70 };
-      let desk = "";
+      // 세간. 색을 주지 않는다 — 작품과 경쟁시키지 않는다.
+      const rug = isoFace({ p: [22, 0.4, 120], e1: DIR.x, e2: DIR.z, w: 180, h: 130, cls: "iso-rug", zi: 4 });
+      const DESK = { x: 40, z: 150, w: 118, d: 58, h: 72 };
+      const onDesk = progList[0] || null;
+      let desk =
+        isoBox({ x: DESK.x, y: DESK.h - 5, z: DESK.z, w: DESK.w, d: DESK.d, h: 5, cls: "iso-desk" }) +
+        isoBox({ x: DESK.x + 4, y: 0, z: DESK.z + 4, w: 6, d: 6, h: DESK.h - 5, cls: "iso-desk leg" }) +
+        isoBox({ x: DESK.x + DESK.w - 10, y: 0, z: DESK.z + 4, w: 6, d: 6, h: DESK.h - 5, cls: "iso-desk leg" }) +
+        isoBox({ x: DESK.x + 4, y: 0, z: DESK.z + DESK.d - 10, w: 6, d: 6, h: DESK.h - 5, cls: "iso-desk leg" }) +
+        isoBox({ x: DESK.x + DESK.w - 10, y: 0, z: DESK.z + DESK.d - 10, w: 6, d: 6, h: DESK.h - 5, cls: "iso-desk leg" });
       if (onDesk) {
-        const cm = artCm(onDesk);
-        // 캔버스는 상판에 눕힌다. 상판 높이보다 아주 조금만 위로 띄워 z-파이팅을 피한다.
-        const cw = PX(Math.min(cm.w, DESK.l - 14)), ch = PX(Math.min(cm.h, DESK.d - 10));
-        const art = photoSrc(onDesk);
-        const lay = `<span class="desk-art" data-dex="${onDesk.id}"
-            style="width:${cw.toFixed(1)}px;height:${ch.toFixed(1)}px;
-                   margin-left:${(-cw / 2).toFixed(1)}px;margin-top:${(-ch / 2).toFixed(1)}px;
-                   transform:translateY(calc(var(--H) / 2 - ${(PX(DESK.top + DESK.h) + 1).toFixed(1)}px)) rotateX(90deg);
-                   ${art ? `background-image:url('${escapeHtml(art)}')` : ""}"
-            title="${escapeHtml(onDesk.name)} · ${pct(onDesk)}%"></span>`;
-        desk =
-          box3({ l: DESK.l, d: DESK.d, h: DESK.h, x: DESK.x, y: DESK.top, z: DESK.z, cls: "desk3" }) +
-          box3({ l: 5, d: DESK.d - 8, h: DESK.top, x: DESK.x - DESK.l / 2 + 6, y: 0, z: DESK.z, cls: "desk3 leg" }) +
-          box3({ l: 5, d: DESK.d - 8, h: DESK.top, x: DESK.x + DESK.l / 2 - 6, y: 0, z: DESK.z, cls: "desk3 leg" }) +
-          `<div class="obj3" style="transform:translate3d(${PX(DESK.x).toFixed(1)}px,0,${PX(DESK.z).toFixed(1)}px)">${lay}</div>`;
+        const cm = artCm(onDesk), ph = photoSrc(onDesk);
+        const w = Math.min(cm.w, DESK.w - 20), h = Math.min(cm.h, DESK.d - 14);
+        desk += isoFace({
+          p: [DESK.x + (DESK.w - w) / 2, DESK.h + 0.6, DESK.z + (DESK.d - h) / 2],
+          e1: DIR.x, e2: DIR.z, w, h, cls: "iso-canvas",
+          attr: `data-dex="${onDesk.id}" title="${escapeHtml(onDesk.name)} · ${pct(onDesk)}%"`,
+          css: ph ? `background-image:url('${escapeHtml(ph)}');` : "",
+          zi: 320,   // 상판(288)보다 위. 안 그러면 책상이 캔버스를 덮는다
+        });
       }
+      const chair =
+        isoBox({ x: DESK.x + 34, y: 42, z: DESK.z + DESK.d + 16, w: 44, d: 44, h: 5, cls: "iso-chair" }) +
+        isoBox({ x: DESK.x + 34, y: 47, z: DESK.z + DESK.d + 55, w: 44, d: 5, h: 42, cls: "iso-chair back" }) +
+        isoBox({ x: DESK.x + 36, y: 0, z: DESK.z + DESK.d + 18, w: 5, d: 5, h: 42, cls: "iso-chair leg" }) +
+        isoBox({ x: DESK.x + 71, y: 0, z: DESK.z + DESK.d + 18, w: 5, d: 5, h: 42, cls: "iso-chair leg" });
 
-      // 방 세간. 작품이 아니라 '사는 자리' 를 만드는 것들이라 전부 무채색에 가깝게 둔다 —
-      // 색이 있으면 작품과 경쟁한다.
-      // 좁은 화면에서는 방 가운데 ±115cm 정도만 보인다 — 세간을 그 안에 둔다.
-      // 밖에 두면 DOM 에는 있는데 화면에는 없는 물건이 된다(실제로 그랬다).
-      const RUG = { w: 190, d: 130, x: -46, z: 24 };
-      const furn =
-        // 러그 — 바닥에 눕힌 면 한 장
-        `<span class="rug3" style="width:${PX(RUG.w).toFixed(1)}px;height:${PX(RUG.d).toFixed(1)}px;
-            margin-left:${(-PX(RUG.w) / 2).toFixed(1)}px;margin-top:${(-PX(RUG.d) / 2).toFixed(1)}px;
-            transform:translate3d(${PX(RUG.x).toFixed(1)}px, ${(PX(ROOM_CM.h) / 2 - 0.5).toFixed(1)}px, ${PX(RUG.z).toFixed(1)}px) rotateX(90deg)"></span>` +
-        // 의자 — 앉는 판 + 등받이 + 다리 둘
-        box3({ l: 42, d: 42, h: 4,  x: -50, z: 74, y: 42, cls: "chair3" }) +
-        box3({ l: 42, d: 4,  h: 44, x: -50, z: 93, y: 46, cls: "chair3 back" }) +
-        box3({ l: 4,  d: 34, h: 42, x: -68, z: 74, y: 0,  cls: "chair3 leg" }) +
-        box3({ l: 4,  d: 34, h: 42, x: -32, z: 74, y: 0,  cls: "chair3 leg" });
-
-      // 모셔둔 킷은 오른쪽 구석 바닥에 실제로 쌓는다. 세 개까지 위로, 넘치면 앞으로 한 줄.
+      // 모셔둔 킷은 오른쪽 구석에 쌓는다
       const stash = stashList.slice(0, 9).map((i, k) => {
         const col = Math.floor(k / 3), row = k % 3;
-        return kit3d(i, { x: 68 - col * 6, y: row * 18, z: -104 + col * 34, rot: -4 + row * 3.5 + col * 6 });
+        return isoKit(i, 200 - col * 4, row * 18, 26 + col * 34);
       }).join("");
-      const stashTag = "";
+
+      // 붙이는 중인 나머지는 왼쪽 벽에 기대 세운다
+      const leaning = progList.slice(onDesk ? 1 : 0, 3).map((i, k) => {
+        const cm = artCm(i), ph = photoSrc(i);
+        const w = Math.min(cm.w, 62), h = w * cm.h / cm.w;
+        return isoFace({ p: [7, h, ROOM.d - 70 - k * 74], e1: DIR.nz, e2: DIR.down, w, h,
+          cls: "iso-lean", attr: `data-dex="${i.id}" title="${escapeHtml(i.name)} · ${pct(i)}%"`,
+          css: ph ? `background-image:url('${escapeHtml(ph)}');` : "", zi: 6 });
+      }).join("");
+
+      const scene = `<div class="iso" id="r3" style="width:${sceneW.toFixed(0)}px;height:${sceneH.toFixed(0)}px;
+          --wallA:${WALL_PALETTES[cfg.wall][0]};--wallB:${WALL_PALETTES[cfg.wall][1]};--skirt:${WALL_PALETTES[cfg.wall][2]};
+          --floorA:${FLOOR_PALETTES[cfg.floor][0]};--floorB:${FLOOR_PALETTES[cfg.floor][1]}">
+          <div class="iso-org" style="--org-y:${(ROOM.h * ISO_K).toFixed(1)}px">${shell}${rug}${wallArt}${leaning}${desk}${chair}${stash}</div>
+        </div>`;
 
       const [wa, wb, sk] = WALL_PALETTES[cfg.wall] || WALL_PALETTES.cream;
       const [fa, fb] = FLOOR_PALETTES[cfg.floor] || FLOOR_PALETTES.oak;
@@ -5369,23 +5454,7 @@
           </div>
 
           <div class="r3-wrap">
-            <div class="r3" id="r3" style="--fit:${ROOM_FIT.toFixed(3)};--wallA:${wa};--wallB:${wb};--skirt:${sk};--floorA:${fa};--floorB:${fb}">
-              <div class="r3-stage" id="r3stage">
-                <div class="r3-surf r3-ceil">
-                  <span class="r3-lamp" style="left:32%"></span>
-                  <span class="r3-lamp" style="left:68%"></span>
-                </div>
-                <div class="r3-surf r3-floor"></div>
-                <div class="r3-surf r3-wall r3-left">${wallArt.left}</div>
-                <div class="r3-surf r3-wall r3-right">${wallArt.right}</div>
-                <div class="r3-surf r3-wall r3-back">${wallArt.back}${leaning}</div>
-                ${furn}${desk}${stash}
-              </div>
-              <span class="r3-air" aria-hidden="true"></span>
-              <div class="r3-views" role="group" aria-label="보는 자리">
-                ${CAM_VIEWS.map((v, i) => `<button type="button" data-view3="${i}"${i === 0 ? ' class="on"' : ''}>${v.name}</button>`).join("")}
-              </div>
-            </div>
+            ${scene}
             <p class="r3-hint">끌어서 둘러보세요 · 작품을 누르면 자리를 옮겨요</p>
 
             ${doneN ? "" : `<p class="wall-empty">아직 걸린 작품이 없어요. 첫 작품을 완성하면 이 벽에 걸립니다.</p>`}
@@ -5420,105 +5489,27 @@
     }
 
     // ── 카메라 + 꾸미기 + 자리 옮기기 ────────────────────────────────
-    // 정면·원거리에서 시작하면 방이 아니라 입면도로 보인다.
-    // 처음부터 살짝 틀고 한 걸음 들어가 있게 둔다 — '찍은 공간'으로 읽힌다.
-    let camYaw = -6, camPitch = 2, camDolly = 0, camSel = null;
-    // 방을 끌어 돌려야만 볼 게 보이면 그건 구경이 아니라 조작이다.
-    // 봐야 할 자리를 미리 잡아 두고 고르게 한다. 끌기는 그대로 둔다.
-    const CAM_VIEWS = [
-      { name: "전체", yaw: -6,  pitch: 2,  dolly: 0 },   // 앞으로 당기면 좌우가 잘린다
-      { name: "책상", yaw: 16,  pitch: 6,  dolly: 300 },
-      { name: "구석", yaw: -20, pitch: 7,  dolly: 290 },
-      { name: "벽",   yaw: 0,   pitch: -1, dolly: -40 },
-    ];
-    function camGoto(i) {
-      const v = CAM_VIEWS[i]; if (!v) return;
-      const r = $("r3"); if (r) r.classList.add("gliding");
-      camYaw = v.yaw; camPitch = v.pitch; camDolly = v.dolly; camApply();
-      document.querySelectorAll("[data-view3]").forEach((b) =>
-        b.classList.toggle("on", +b.dataset.view3 === i));
-      setTimeout(() => r && r.classList.remove("gliding"), 620);
-    }
-
-    function camApply() {
-      const r = $("r3"); if (!r) return;
-      r.style.setProperty("--yaw", camYaw.toFixed(2) + "deg");
-      r.style.setProperty("--pitch", camPitch.toFixed(2) + "deg");
-      r.style.setProperty("--dolly", camDolly.toFixed(0) + "px");
-    }
+    let camSel = null;
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
+    // 시점이 고정이라 끌기·핀치·프리셋이 전부 필요 없어졌다.
+    // 남는 건 '누르면 그 작품이 잡힌다' 와 꾸미기뿐이다.
     function bindRoom() {
       const r = $("r3"); if (!r) return;
-      camApply();
-
-      let drag = null, moved = 0, pinch = null;
-      r.addEventListener("pointerdown", (e) => {
-        if (e.isPrimary === false) return;
-        drag = { x: e.clientX, y: e.clientY, yaw: camYaw, pitch: camPitch,
-                 hit: e.target.closest(".art3, .lean3, .kit3, .desk-art") };
-        moved = 0; r.classList.add("dragging");
-        r.setPointerCapture(e.pointerId);
+      r.addEventListener("click", (e) => {
+        const hit = e.target.closest(".iso-art, .iso-lean, .iso-kit, .iso-canvas");
+        selectArt(hit ? hit.dataset.dex : null);
       });
-      r.addEventListener("pointermove", (e) => {
-        if (!drag) return;
-        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-        moved = Math.max(moved, Math.abs(dx) + Math.abs(dy));
-        camYaw = clamp(drag.yaw + dx * 0.16, -42, 42);
-        camPitch = clamp(drag.pitch - dy * 0.08, -12, 16);
-        camApply();
-        if (moved > 6) r.classList.add("moved");
-      });
-      const endDrag = () => {
-        if (!drag) return;
-        const hit = drag.hit;
-        drag = null; r.classList.remove("dragging");
-        if (moved < 6) selectArt(hit ? hit.dataset.dex : null);   // 끌지 않고 톡 눌렀다 = 선택
-      };
-      r.addEventListener("pointerup", endDrag);
-      r.addEventListener("pointercancel", () => { drag = null; r.classList.remove("dragging"); });
-
-      // 트랙패드 핀치(ctrl+휠)만 확대로 쓴다. 맨 휠은 페이지 스크롤 그대로.
-      r.addEventListener("wheel", (e) => {
-        if (!e.ctrlKey) return;
-        e.preventDefault();
-        camDolly = clamp(camDolly - e.deltaY * 4, -300, 430);
-        r.classList.add("moved"); camApply();
-      }, { passive: false });
-
-      // 두 손가락으로 벌리면 다가간다
-      const pts = new Map();
-      r.addEventListener("pointerdown", (e) => pts.set(e.pointerId, e));
-      r.addEventListener("pointermove", (e) => {
-        if (!pts.has(e.pointerId)) return;
-        pts.set(e.pointerId, e);
-        if (pts.size !== 2) return;
-        const [a, b] = [...pts.values()];
-        const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-        if (pinch != null) { camDolly = clamp(camDolly + (d - pinch) * 1.6, -300, 430); camApply(); }
-        pinch = d; drag = null;
-      });
-      const drop = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
-      r.addEventListener("pointerup", drop);
-      r.addEventListener("pointercancel", drop);
-
-      r.querySelectorAll("[data-view3]").forEach((b) => b.addEventListener("click", (e) => {
-        e.stopPropagation();
-        camGoto(+b.dataset.view3);
-      }));
-
-      // 꾸미기
       $("albumView").querySelectorAll("[data-deco]").forEach((b) => b.addEventListener("click", () => {
         const c = roomCfg(); c[b.dataset.deco] = b.dataset.val; saveRoom(c); renderAlbum();
       }));
-
       if (camSel) selectArt(camSel, true);
     }
 
     function selectArt(id, keepScroll) {
       camSel = id;
       const sheet = $("r3sheet"); if (!sheet) return;
-      document.querySelectorAll(".art3").forEach((f) => f.classList.toggle("sel", f.dataset.dex === id));
+      document.querySelectorAll("[data-dex]").forEach((f) => f.classList.toggle("sel", f.dataset.dex === id));
       if (!id) { sheet.hidden = true; sheet.innerHTML = ""; return; }
 
       const it = items.find((x) => x.id === id);
@@ -5530,44 +5521,10 @@
         it.hours ? fmtHours(it.hours) : null,
       ].filter(Boolean).join(" · ");
 
-      const onWall = it.status === "done";
-      const pl = (roomCfg().place || {})[id] || {};
+      // 벽 고르기·밀기 단추는 돌려 보는 3면 모델의 것이었다.
+      // 아이소는 자리가 정해져 있어 고를 게 없다 — 이름과 정보만 남긴다.
       sheet.hidden = false;
-      sheet.innerHTML = `
-        <h4>${escapeHtml(it.name)}</h4>
-        <p class="meta">${meta}</p>
-        ${onWall ? `<div class="nudge">
-          <button type="button" data-wall="left"  class="${pl.w === "left" ? "on" : ""}">왼쪽 벽</button>
-          <button type="button" data-wall="back"  class="${pl.w === "back" || !pl.w ? "on" : ""}">정면</button>
-          <button type="button" data-wall="right" class="${pl.w === "right" ? "on" : ""}">오른쪽 벽</button>
-          <span class="sp"></span>
-          <button type="button" data-nudge="x-">← 왼쪽</button>
-          <button type="button" data-nudge="x+">오른쪽 →</button>
-          <button type="button" data-nudge="y-">↑ 위</button>
-          <button type="button" data-nudge="y+">↓ 아래</button>
-          <button type="button" data-nudge="reset">자리 초기화</button>
-        </div>` : `<p class="meta">완성하면 벽에 걸려요.</p>`}`;
-
-      sheet.querySelectorAll("[data-wall]").forEach((b) => b.addEventListener("click", () => {
-        const c = roomCfg();
-        c.place[id] = { ...(c.place[id] || {}), w: b.dataset.wall, x: null, y: null };
-        saveRoom(c); renderAlbum();
-      }));
-      sheet.querySelectorAll("[data-nudge]").forEach((b) => b.addEventListener("click", () => {
-        const c = roomCfg();
-        const cur = { ...(autoPlace(items.filter((i) => i.status === "done")
-                       .sort((a, z) => (a.createdAt || 0) - (z.createdAt || 0)), c.place)[id] || {}) };
-        const k = b.dataset.nudge;
-        if (k === "reset") delete c.place[id];
-        else {
-          if (k === "x-") cur.x = clamp(cur.x - 6, 6, 94);
-          if (k === "x+") cur.x = clamp(cur.x + 6, 6, 94);
-          if (k === "y-") cur.y = clamp(cur.y - 5, 10, 78);
-          if (k === "y+") cur.y = clamp(cur.y + 5, 10, 78);
-          c.place[id] = { w: cur.w, x: cur.x, y: cur.y };
-        }
-        saveRoom(c); renderAlbum();
-      }));
+      sheet.innerHTML = `<h4>${escapeHtml(it.name)}</h4><p class="meta">${meta}</p>`;
       if (!keepScroll) sheet.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
 
