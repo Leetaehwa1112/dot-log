@@ -4918,24 +4918,40 @@
     // '내 기록이 하나라도 있으면 예시를 숨긴다' 로 동작한다 — 삭제는 중복인데,
     // 한 번 지우면 되돌릴 수가 없다. 실제로 예시 3개가 영영 사라졌다.
     // 이제 숨기기만 하고 데이터는 남긴다. 되살리기는 메뉴에서.
+    // renderAll() 마다 불린다. 한 번만 말해야 한다 —
+    // 조건만 보고 말하면 화면을 다시 그릴 때마다 같은 토스트가 또 뜬다.
+    const RETIRED_KEY = "dp-examples-retired";
     function retireExamples() {
       if (!items.some((i) => i.sample)) return;
       if (!items.some((i) => !i.sample)) return;
+      if (localStorage.getItem(RETIRED_KEY)) return;
+      try { localStorage.setItem(RETIRED_KEY, "1"); } catch {}
       showToast("예시는 숨겼어요 · 이제 내 기록만 보여요");
     }
 
-    /** 지워졌거나 숨겨진 예시 3개를 다시 세운다. 내 기록은 건드리지 않는다. */
+    /** 숨겨졌거나 지워진 예시 3개를 다시 세운다. 내 기록은 건드리지 않는다. */
     function restoreExamples() {
-      const have = new Set(items.filter((i) => i.sample).map((i) => i.name));
-      const add = sampleItems().filter((x) => !have.has(x.name));
-      if (add.length) { items = items.concat(add); save(); }
-      // 내 기록이 있으면 shown() 이 예시를 숨기므로, 예시를 보려면 그 사실을 알려야 한다.
-      const mine = items.some((i) => !i.sample);
+      // ① 이미 들어 있는데 숨어만 있는 것부터 꺼낸다.
+      //    shown() 이 '내 기록이 하나라도 있으면 예시는 숨긴다' 로 동작한다.
+      //    그래서 sample 플래그를 단 채 되살리면 그 자리에서 다시 숨는다 —
+      //    눌러도 아무 일이 없는 것처럼 보였다. 플래그를 떼서 내 기록으로 올린다.
+      //    이제 하나씩 지울 수도 있고, 예시 청소(SAMPLE_VER)에도 안 쓸려간다.
+      let woke = 0;
+      items = items.map((i) => {
+        if (!i.sample) return i;
+        woke++;
+        const { sample, ...rest } = i;
+        return rest;
+      });
+      // ② 아예 지워진 것은 새로 넣는다. 이름으로 견줘 겹치지 않게.
+      const have = new Set(items.map((i) => i.name));
+      const add = sampleItems().filter((x) => !have.has(x.name)).map(({ sample, ...rest }) => rest);
+      if (add.length) items = items.concat(add);
+      if (woke || add.length) save();
+      try { localStorage.removeItem(RETIRED_KEY); } catch {}
       renderAll();
-      showToast(add.length
-        ? (mine ? `예시 ${add.length}개를 되살렸어요 · 내 기록이 있어서 목록에는 안 보여요`
-                : `예시 ${add.length}개를 되살렸어요`)
-        : "예시는 이미 다 있어요");
+      const n = woke + add.length;
+      showToast(n ? `예시 ${n}개를 되살렸어요 · 이제 목록에 보여요` : "예시는 이미 다 있어요");
     }
 
     // 동기화는 기본으로 켜지 않는다. 계정도 로그인도 없는 앱이라 사용자는
