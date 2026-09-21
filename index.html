@@ -3474,6 +3474,12 @@
     .iso-chair.f-top   { background: #6f6760; }
     .iso-chair.f-south { background: #565049; }
     .iso-chair.f-east  { background: #403b36; }
+    .iso-chair.leg.f-top   { background: #5b544d; }
+    .iso-chair.leg.f-south { background: #47423c; }
+    .iso-chair.leg.f-east  { background: #35312c; }
+    .iso-chair.back.f-top   { background: #655e57; }
+    .iso-chair.back.f-south { background: #4e4842; }
+    .iso-chair.back.f-east  { background: #3a3630; }
 
     .iso-kit { cursor: pointer; }
     :root { --kit-tile: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%206.5%2012.4%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23c3373e%27%20stroke-width%3D%27.42%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%3E%3Cg%20transform%3D%27translate%280%200%29%27%3E%3Cpath%20d%3D%27M.945%200h4.01L5.9%201.38%202.95%205.18%200%201.38Z%27%2F%3E%3Cpath%20d%3D%27M0%201.38h5.9%27%2F%3E%3Cpath%20d%3D%27M.945%200%201.475%201.38M2.282%200%201.475%201.38M2.282%200%202.95%201.38M3.618%200%202.95%201.38M3.618%200%204.425%201.38M4.955%200%204.425%201.38%27%2F%3E%3Cpath%20d%3D%27M1.475%201.38%202.95%205.18M2.95%201.38v3.8M4.425%201.38%202.95%205.18%27%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%27translate%28-3.25%206.2%29%27%3E%3Cpath%20d%3D%27M.945%200h4.01L5.9%201.38%202.95%205.18%200%201.38Z%27%2F%3E%3Cpath%20d%3D%27M0%201.38h5.9%27%2F%3E%3Cpath%20d%3D%27M.945%200%201.475%201.38M2.282%200%201.475%201.38M2.282%200%202.95%201.38M3.618%200%202.95%201.38M3.618%200%204.425%201.38M4.955%200%204.425%201.38%27%2F%3E%3Cpath%20d%3D%27M1.475%201.38%202.95%205.18M2.95%201.38v3.8M4.425%201.38%202.95%205.18%27%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%27translate%283.25%206.2%29%27%3E%3Cpath%20d%3D%27M.945%200h4.01L5.9%201.38%202.95%205.18%200%201.38Z%27%2F%3E%3Cpath%20d%3D%27M0%201.38h5.9%27%2F%3E%3Cpath%20d%3D%27M.945%200%201.475%201.38M2.282%200%201.475%201.38M2.282%200%202.95%201.38M3.618%200%202.95%201.38M3.618%200%204.425%201.38M4.955%200%204.425%201.38%27%2F%3E%3Cpath%20d%3D%27M1.475%201.38%202.95%205.18M2.95%201.38v3.8M4.425%201.38%202.95%205.18%27%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E"); }
@@ -5454,11 +5460,23 @@
           zi: 320,   // 상판(288)보다 위. 안 그러면 책상이 캔버스를 덮는다
         });
       }
+      // 의자. 다리가 앞쪽 둘뿐이라 떠 있는 것처럼 보였다 — 넷으로 세운다.
+      // 등받이는 판 하나가 아니라 기둥 둘 + 가로대. 나무의자가 그렇게 생겼고,
+      // 그래야 옆에서 봐도 앉는 자리와 기대는 자리가 구분된다.
+      // 책상 밑으로 밀어 넣지는 않는다 — 화가의 순서로 그리는 방이라
+      // 겹치는 순간 의자가 책상 위에 올라앉는다.
+      const CH = { x: DESK.x + 45, z: DESK.z + DESK.d + 12, w: 42, d: 42, h: 43, t: 5 };
+      const chLeg = (dx, dz) =>
+        isoBox({ x: CH.x + dx, y: 0, z: CH.z + dz, w: CH.t, d: CH.t, h: CH.h, cls: "iso-chair leg" });
+      const chPost = (dx) =>
+        isoBox({ x: CH.x + dx, y: CH.h + 4, z: CH.z + CH.d - CH.t, w: CH.t, d: CH.t, h: 36, cls: "iso-chair leg" });
       const chair =
-        isoBox({ x: DESK.x + 38, y: 42, z: DESK.z + DESK.d + 18, w: 44, d: 44, h: 5, cls: "iso-chair", shadow: true }) +
-        isoBox({ x: DESK.x + 38, y: 47, z: DESK.z + DESK.d + 57, w: 44, d: 5, h: 42, cls: "iso-chair back" }) +
-        isoBox({ x: DESK.x + 40, y: 0, z: DESK.z + DESK.d + 20, w: 5, d: 5, h: 42, cls: "iso-chair leg" }) +
-        isoBox({ x: DESK.x + 75, y: 0, z: DESK.z + DESK.d + 20, w: 5, d: 5, h: 42, cls: "iso-chair leg" });
+        chLeg(0, 0) + chLeg(CH.w - CH.t, 0) + chLeg(0, CH.d - CH.t) + chLeg(CH.w - CH.t, CH.d - CH.t) +
+        isoBox({ x: CH.x - 2, y: CH.h, z: CH.z - 2, w: CH.w + 4, d: CH.d + 4, h: 4,
+                 cls: "iso-chair", shadow: true }) +
+        chPost(0) + chPost(CH.w - CH.t) +
+        isoBox({ x: CH.x + CH.t, y: CH.h + 26, z: CH.z + CH.d - CH.t + 0.5,
+                 w: CH.w - CH.t * 2, d: 4, h: 14, cls: "iso-chair back" });
 
       // 모셔둔 킷은 오른쪽 구석에 쌓는다
       const stash = stashList.slice(0, 9).map((i, k) => {
