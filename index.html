@@ -3339,6 +3339,45 @@
       font-size: 8px !important; font-weight: 520 !important; letter-spacing: .06em;
       color: color-mix(in srgb, #1b1a18 55%, transparent) !important;
     }
+    /* ═══ 방 안의 3D 물건 ══════════════════════════════════════════════
+       상자를 SVG 한 장으로 세워 두니(빌보드) 방을 돌릴 때 같이 돌아
+       종이 조각처럼 보였다. 면 다섯 장을 실제로 세워 만든다.
+       ════════════════════════════════════════════════════════════════ */
+    .box3, .obj3 { position: absolute; left: 50%; top: 50%; transform-style: preserve-3d; }
+    .bx-f { position: absolute; left: 50%; top: 50%; display: block; backface-visibility: hidden; }
+
+    /* 킷 상자 — 흰 골판지에 다이아 타일, 면마다 빛을 다르게 먹인다 */
+    .kit3 { pointer-events: auto; cursor: pointer; }
+    .kit3.is-dac .bx-f {
+      background-color: #fdfbfa;
+      background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%206.5%2012.4%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23c3373e%27%20stroke-width%3D%27.42%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%3E%3Cg%20transform%3D%27translate%280%200%29%27%3E%3Cpath%20d%3D%27M.945%200h4.01L5.9%201.38%202.95%205.18%200%201.38Z%27%2F%3E%3Cpath%20d%3D%27M0%201.38h5.9%27%2F%3E%3Cpath%20d%3D%27M.945%200%201.475%201.38M2.282%200%201.475%201.38M2.282%200%202.95%201.38M3.618%200%202.95%201.38M3.618%200%204.425%201.38M4.955%200%204.425%201.38%27%2F%3E%3Cpath%20d%3D%27M1.475%201.38%202.95%205.18M2.95%201.38v3.8M4.425%201.38%202.95%205.18%27%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%27translate%28-3.25%206.2%29%27%3E%3Cpath%20d%3D%27M.945%200h4.01L5.9%201.38%202.95%205.18%200%201.38Z%27%2F%3E%3Cpath%20d%3D%27M0%201.38h5.9%27%2F%3E%3Cpath%20d%3D%27M.945%200%201.475%201.38M2.282%200%201.475%201.38M2.282%200%202.95%201.38M3.618%200%202.95%201.38M3.618%200%204.425%201.38M4.955%200%204.425%201.38%27%2F%3E%3Cpath%20d%3D%27M1.475%201.38%202.95%205.18M2.95%201.38v3.8M4.425%201.38%202.95%205.18%27%2F%3E%3C%2Fg%3E%3Cg%20transform%3D%27translate%283.25%206.2%29%27%3E%3Cpath%20d%3D%27M.945%200h4.01L5.9%201.38%202.95%205.18%200%201.38Z%27%2F%3E%3Cpath%20d%3D%27M0%201.38h5.9%27%2F%3E%3Cpath%20d%3D%27M.945%200%201.475%201.38M2.282%200%201.475%201.38M2.282%200%202.95%201.38M3.618%200%202.95%201.38M3.618%200%204.425%201.38M4.955%200%204.425%201.38%27%2F%3E%3Cpath%20d%3D%27M1.475%201.38%202.95%205.18M2.95%201.38v3.8M4.425%201.38%202.95%205.18%27%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E"); background-size: var(--ts, 24px) auto;
+      box-shadow: inset 0 0 0 1px #c3373e;
+    }
+    .kit3.is-plain .bx-f { background-color: #ddc2a0; box-shadow: inset 0 0 0 1px #9b7a53; }
+    .kit3 .bx-top   { filter: brightness(1.04); }
+    .kit3 .bx-front { filter: brightness(.9); }
+    .kit3 .bx-left, .kit3 .bx-right { filter: brightness(.78); }
+    .kit3 .bx-back  { filter: brightness(.7); }
+    /* 윗면 가운데 흰 라벨 — 실물에서 로고가 들어가는 자리 */
+    .bx-plate {
+      position: absolute; left: 26%; right: 26%; top: 16%; bottom: 16%;
+      background: #fffdfc; box-shadow: inset 0 0 0 1.5px #c3373e;
+    }
+
+    /* 책상 — 상판과 다리. 나무색 한 가지에 면별 명암만 준다 */
+    .desk3 .bx-f { background: #6d5136; }
+    .desk3 .bx-top   { background: #8a6a48; }
+    .desk3 .bx-front { background: #5d452e; }
+    .desk3 .bx-left, .desk3 .bx-right { background: #4c3825; }
+    .desk3.leg .bx-f { background: #4c3825; }
+
+    /* 책상에 펼쳐 둔 캔버스 */
+    .desk-art {
+      position: absolute; left: 50%; top: 50%; display: block;
+      background-size: cover; background-position: center;
+      background-color: #f3efe6; pointer-events: auto; cursor: pointer;
+      box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 10px 18px -8px rgba(0,0,0,.55);
+    }
 </style>
 </head>
 
@@ -5115,6 +5154,51 @@
     }
 
     let ROOM_FIT = 1;
+    // ── 방에 놓는 3D 물건 ─────────────────────────────────────────
+    // 지금까지 상자는 SVG 그림 한 장을 세워 둔 것(빌보드)이었다. 방을 돌리면
+    // 같이 돌아 버려서 종이 조각처럼 보인다. 면 다섯 장을 실제로 세워 만든다.
+    const PX = (cm) => cm * CM * ROOM_FIT;
+
+    /** 바닥에 놓인 직육면체. l·d·h 는 cm, x·z 는 방 중심 기준 cm, y 는 바닥에서 띄운 높이 cm. */
+    function box3({ l, d, h, x = 0, y = 0, z = 0, rot = 0, cls = "", attr = "", faces = {}, css = "" }) {
+      const L = PX(l), D = PX(d), H = PX(h);
+      // 방 중심이 원점이고 아래가 +Y, 바닥은 +H/2 에 있다.
+      const cy = `calc(var(--H) / 2 - ${(PX(y) + H / 2).toFixed(1)}px)`;
+      const f = (k, w, ht, tf) =>
+        `<i class="bx-f bx-${k}" style="width:${w.toFixed(1)}px;height:${ht.toFixed(1)}px;` +
+        `margin-left:${(-w / 2).toFixed(1)}px;margin-top:${(-ht / 2).toFixed(1)}px;` +
+        `transform:${tf}">${faces[k] || ""}</i>`;
+      return `<div class="box3 ${cls}" ${attr}
+          style="${css}transform:translate3d(${PX(x).toFixed(1)}px, ${cy}, ${PX(z).toFixed(1)}px) rotateY(${rot}deg)">
+        ${f("top",   L, D, `translateY(${(-H / 2).toFixed(1)}px) rotateX(90deg)`)}
+        ${f("front", L, H, `translateZ(${(D / 2).toFixed(1)}px)`)}
+        ${f("back",  L, H, `translateZ(${(-D / 2).toFixed(1)}px) rotateY(180deg)`)}
+        ${f("left",  D, H, `translateX(${(-L / 2).toFixed(1)}px) rotateY(-90deg)`)}
+        ${f("right", D, H, `translateX(${(L / 2).toFixed(1)}px) rotateY(90deg)`)}
+      </div>`;
+    }
+
+    // 상자 겉면 다이아 타일은 CSS 에 둔다(.kit3.is-dac .bx-f).
+    // 인라인 style 에 data URI 를 넣었더니 그 안의 큰따옴표가 HTML 속성을 끊어
+    // transform 까지 통째로 날아갔다 — 상자 셋이 원점에 겹쳐 있었다.
+
+    /** 모셔둔 킷 한 상자. 실제 치수 85 x 22 x 14 cm. */
+    function kit3d(item, { x, y, z, rot }) {
+      const dac = isDacBrand(item.brand);
+      // 인라인으로는 크기만 내려 보낸다(따옴표 없는 값이라 안전하다).
+      const tile = dac ? `--ts:${PX(9).toFixed(1)}px;` : "";
+      const label = dac
+        ? `<span class="bx-plate"></span>`
+        : "";
+      return box3({
+        l: 85, d: 26, h: 18, x, y, z, rot,   // 실제 킷 상자 비율. 너무 납작하면 쌓인 게 안 보인다
+        cls: "kit3" + (dac ? " is-dac" : " is-plain"),
+        attr: `data-dex="${item.id}" title="${escapeHtml(item.name)} · 모셔둠"`,
+        faces: { top: label },
+        css: tile,
+      });
+    }
+
     function renderAlbum() {
       const el = $("albumView");
       // 방 전체를 화면에 우겨넣으면 폰에서는 4m 벽이 통째로 들어와
@@ -5158,7 +5242,10 @@
       const progList  = wipList.filter((i) => i.status !== "planned");
       const stashList = wipList.filter((i) => i.status === "planned");
 
-      const leaning = progList.slice(0, 3).map((i, k) => {
+      // 붙이는 중인 것 하나는 책상 위에 펼쳐 둔다 — 방에 사람이 앉아 있던 티가 난다.
+      // 나머지는 벽에 기대 세운다.
+      const onDesk = progList[0] || null;
+      const leaning = progList.slice(onDesk ? 1 : 0, 3).map((i, k) => {
         const n = artNode(i, k);
         const x = 16 + k * 24;
         return `<figure class="lean3" data-dex="${i.id}" style="--w:${Math.round(n.w * 0.78)}px;left:${x}%">
@@ -5166,27 +5253,33 @@
         </figure>`;
       }).join("");
 
-      // 모셔둔 킷은 오른쪽 구석에 상자째 쌓아 둔다.
-      // 세 개까지 위로 쌓고, 넘치면 그 왼쪽에 한 줄 더 만든다.
-      const KIT_CM = 100, PER_COL = 3;  // 도안이 70~120cm 라 상자도 그만큼 길다
-      const kitPx = Math.max(26, Math.round(KIT_CM * CM * ROOM_FIT));
+      // 책상 120 x 60 x 74 cm. 상판 한 장 + 다리 두 장이면 형태가 선다.
+      const DESK = { l: 120, d: 60, h: 4, x: -105, z: 42, top: 70 };
+      let desk = "";
+      if (onDesk) {
+        const cm = artCm(onDesk);
+        // 캔버스는 상판에 눕힌다. 상판 높이보다 아주 조금만 위로 띄워 z-파이팅을 피한다.
+        const cw = PX(Math.min(cm.w, DESK.l - 14)), ch = PX(Math.min(cm.h, DESK.d - 10));
+        const art = photoSrc(onDesk);
+        const lay = `<span class="desk-art" data-dex="${onDesk.id}"
+            style="width:${cw.toFixed(1)}px;height:${ch.toFixed(1)}px;
+                   margin-left:${(-cw / 2).toFixed(1)}px;margin-top:${(-ch / 2).toFixed(1)}px;
+                   transform:translateY(calc(var(--H) / 2 - ${(PX(DESK.top + DESK.h) + 1).toFixed(1)}px)) rotateX(90deg);
+                   ${art ? `background-image:url('${escapeHtml(art)}')` : ""}"
+            title="${escapeHtml(onDesk.name)} · ${pct(onDesk)}%"></span>`;
+        desk =
+          box3({ l: DESK.l, d: DESK.d, h: DESK.h, x: DESK.x, y: DESK.top, z: DESK.z, cls: "desk3" }) +
+          box3({ l: 5, d: DESK.d - 8, h: DESK.top, x: DESK.x - DESK.l / 2 + 6, y: 0, z: DESK.z, cls: "desk3 leg" }) +
+          box3({ l: 5, d: DESK.d - 8, h: DESK.top, x: DESK.x + DESK.l / 2 - 6, y: 0, z: DESK.z, cls: "desk3 leg" }) +
+          `<div class="obj3" style="transform:translate3d(${PX(DESK.x).toFixed(1)}px,0,${PX(DESK.z).toFixed(1)}px)">${lay}</div>`;
+      }
+
+      // 모셔둔 킷은 오른쪽 구석 바닥에 실제로 쌓는다. 세 개까지 위로, 넘치면 앞으로 한 줄.
       const stash = stashList.slice(0, 9).map((i, k) => {
-        const col = Math.floor(k / PER_COL), row = k % PER_COL;
-        const x = 68 - col * 20;
-        const lift = Math.round(row * kitPx * 0.1125);  // 옆면 높이만큼만 올라간다
-        const tilt = (k % 2 ? 1 : -1) * (1.4 + row * 0.5);
-        return `<figure class="kit3${row ? " stacked" : ""}" data-dex="${i.id}"
-            title="${escapeHtml(i.name)} · 모셔둠"
-            style="--w:${kitPx}px;left:${x}%;--lift:${lift}px;--tilt:${tilt}deg">
-          ${kitBox(i)}
-        </figure>`;
+        const col = Math.floor(k / 3), row = k % 3;
+        return kit3d(i, { x: 103 - col * 6, y: row * 18, z: -118 + col * 34, rot: -4 + row * 3.5 + col * 6 });
       }).join("");
-      // 꼬리표는 맨 오른쪽 더미 위에 올린다 — 더미에 가리지 않게 쌓인 높이만큼 띄운다.
-      const topRow = Math.min(stashList.length, PER_COL);
-      const stashTag = stashList.length
-        ? `<span class="kit3-tag" style="left:68%;--lift:${Math.round((topRow - 1) * kitPx * 0.1125 + kitPx * 0.37)}px"
-                 >모셔둔 킷 ${stashList.length}</span>`
-        : "";
+      const stashTag = "";
 
       const [wa, wb, sk] = WALL_PALETTES[cfg.wall] || WALL_PALETTES.cream;
       const [fa, fb] = FLOOR_PALETTES[cfg.floor] || FLOOR_PALETTES.oak;
@@ -5220,7 +5313,8 @@
                 <div class="r3-surf r3-floor"></div>
                 <div class="r3-surf r3-wall r3-left">${wallArt.left}</div>
                 <div class="r3-surf r3-wall r3-right">${wallArt.right}</div>
-                <div class="r3-surf r3-wall r3-back">${wallArt.back}${leaning}${stash}${stashTag}</div>
+                <div class="r3-surf r3-wall r3-back">${wallArt.back}${leaning}</div>
+                ${desk}${stash}
               </div>
               <span class="r3-air" aria-hidden="true"></span>
               <div class="r3-zoom">
@@ -5281,7 +5375,7 @@
       r.addEventListener("pointerdown", (e) => {
         if (e.isPrimary === false) return;
         drag = { x: e.clientX, y: e.clientY, yaw: camYaw, pitch: camPitch,
-                 hit: e.target.closest(".art3, .lean3, .kit3") };
+                 hit: e.target.closest(".art3, .lean3, .kit3, .desk-art") };
         moved = 0; r.classList.add("dragging");
         r.setPointerCapture(e.pointerId);
       });
