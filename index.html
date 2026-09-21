@@ -5303,7 +5303,7 @@
       }).join("");
 
       // 책상 120 x 60 x 74 cm. 상판 한 장 + 다리 두 장이면 형태가 선다.
-      const DESK = { l: 120, d: 60, h: 4, x: -105, z: 42, top: 70 };
+      const DESK = { l: 118, d: 58, h: 4, x: -50, z: 6, top: 70 };
       let desk = "";
       if (onDesk) {
         const cm = artCm(onDesk);
@@ -5325,22 +5325,24 @@
 
       // 방 세간. 작품이 아니라 '사는 자리' 를 만드는 것들이라 전부 무채색에 가깝게 둔다 —
       // 색이 있으면 작품과 경쟁한다.
-      const RUG = { w: 210, d: 150, x: -95, z: 60 };
+      // 좁은 화면에서는 방 가운데 ±115cm 정도만 보인다 — 세간을 그 안에 둔다.
+      // 밖에 두면 DOM 에는 있는데 화면에는 없는 물건이 된다(실제로 그랬다).
+      const RUG = { w: 190, d: 130, x: -46, z: 24 };
       const furn =
         // 러그 — 바닥에 눕힌 면 한 장
         `<span class="rug3" style="width:${PX(RUG.w).toFixed(1)}px;height:${PX(RUG.d).toFixed(1)}px;
             margin-left:${(-PX(RUG.w) / 2).toFixed(1)}px;margin-top:${(-PX(RUG.d) / 2).toFixed(1)}px;
             transform:translate3d(${PX(RUG.x).toFixed(1)}px, ${(PX(ROOM_CM.h) / 2 - 0.5).toFixed(1)}px, ${PX(RUG.z).toFixed(1)}px) rotateX(90deg)"></span>` +
         // 의자 — 앉는 판 + 등받이 + 다리 둘
-        box3({ l: 42, d: 42, h: 4,  x: -105, z: 112, y: 42, cls: "chair3" }) +
-        box3({ l: 42, d: 4,  h: 44, x: -105, z: 131, y: 46, cls: "chair3 back" }) +
-        box3({ l: 4,  d: 34, h: 42, x: -123, z: 112, y: 0,  cls: "chair3 leg" }) +
-        box3({ l: 4,  d: 34, h: 42, x: -87,  z: 112, y: 0,  cls: "chair3 leg" });
+        box3({ l: 42, d: 42, h: 4,  x: -50, z: 74, y: 42, cls: "chair3" }) +
+        box3({ l: 42, d: 4,  h: 44, x: -50, z: 93, y: 46, cls: "chair3 back" }) +
+        box3({ l: 4,  d: 34, h: 42, x: -68, z: 74, y: 0,  cls: "chair3 leg" }) +
+        box3({ l: 4,  d: 34, h: 42, x: -32, z: 74, y: 0,  cls: "chair3 leg" });
 
       // 모셔둔 킷은 오른쪽 구석 바닥에 실제로 쌓는다. 세 개까지 위로, 넘치면 앞으로 한 줄.
       const stash = stashList.slice(0, 9).map((i, k) => {
         const col = Math.floor(k / 3), row = k % 3;
-        return kit3d(i, { x: 103 - col * 6, y: row * 18, z: -118 + col * 34, rot: -4 + row * 3.5 + col * 6 });
+        return kit3d(i, { x: 68 - col * 6, y: row * 18, z: -104 + col * 34, rot: -4 + row * 3.5 + col * 6 });
       }).join("");
       const stashTag = "";
 
@@ -5420,11 +5422,11 @@
     // ── 카메라 + 꾸미기 + 자리 옮기기 ────────────────────────────────
     // 정면·원거리에서 시작하면 방이 아니라 입면도로 보인다.
     // 처음부터 살짝 틀고 한 걸음 들어가 있게 둔다 — '찍은 공간'으로 읽힌다.
-    let camYaw = -6, camPitch = 2, camDolly = 70, camSel = null;
+    let camYaw = -6, camPitch = 2, camDolly = 0, camSel = null;
     // 방을 끌어 돌려야만 볼 게 보이면 그건 구경이 아니라 조작이다.
     // 봐야 할 자리를 미리 잡아 두고 고르게 한다. 끌기는 그대로 둔다.
     const CAM_VIEWS = [
-      { name: "전체", yaw: -6,  pitch: 2,  dolly: 70 },
+      { name: "전체", yaw: -6,  pitch: 2,  dolly: 0 },   // 앞으로 당기면 좌우가 잘린다
       { name: "책상", yaw: 16,  pitch: 6,  dolly: 300 },
       { name: "구석", yaw: -20, pitch: 7,  dolly: 290 },
       { name: "벽",   yaw: 0,   pitch: -1, dolly: -40 },
